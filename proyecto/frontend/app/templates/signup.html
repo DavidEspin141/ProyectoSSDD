@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block custom_style %}
+<style>
+    /* Mantenemos el fondo del index para coherencia total */
+    body {
+        background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f0f 100%);
+        color: white;
+        min-height: 100vh;
+    }
+
+    .signup-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: calc(100vh - 160px);
+    }
+
+    /* Tarjeta estilo Glassmorphism */
+    .form-signup {
+        width: 100%;
+        max-width: 450px;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .signup-logo {
+        font-size: 2.5rem;
+        background: #045eef;
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        margin: 0 auto 20px auto;
+        box-shadow: 0 0 20px rgba(4, 94, 239, 0.4);
+    }
+
+    /* Inputs personalizados tipo "Dark" */
+    .form-control {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: #045eef !important;
+        box-shadow: 0 0 0 0.25rem rgba(4, 94, 239, 0.25) !important;
+    }
+
+    /* Estilo del botón */
+    .btn-signup {
+        background-color: #045eef;
+        border: none;
+        padding: 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s;
+        margin-top: 10px;
+    }
+
+    .btn-signup:hover {
+        background-color: #034acb;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(4, 94, 239, 0.4);
+    }
+
+    /* Mensajes de error/flash */
+    .notification {
+        background: rgba(255, 68, 68, 0.1);
+        color: #ff4444;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border-left: 4px solid #ff4444;
+        text-align: left;
+    }
+
+    .login-link {
+        color: #045eef;
+        text-decoration: none;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="signup-wrapper">
+    <main class="form-signup text-center">
+        <div class="signup-logo">🦙</div>
+        
+        <h2 class="fw-bold mb-2">Crear cuenta</h2>
+        <p class="mb-4" style="color: rgba(255,255,255,0.6);">Únete a la red de <b>LlamaChat</b></p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="notification">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/signup">
+            {{ form.hidden_tag() }}
+            
+            <input type="text" name="name" class="form-control" placeholder="Nombre completo" required autofocus>
+            
+            <input type="email" name="email" class="form-control" placeholder="Correo electrónico" required>
+            
+            <input type="password" name="password" class="form-control" placeholder="Contraseña" required>
+
+            <button class="w-100 btn btn-lg btn-primary btn-signup" type="submit">Empezar ahora</button>
+
+            <div class="mt-4">
+                <p class="small" style="color: rgba(255,255,255,0.5);">
+                    ¿Ya tienes cuenta? <a href="{{ url_for('login') }}" class="login-link">Inicia sesión</a>
+                </p>
+            </div>
+        </form>
+    </main>
+</div>
+{% endblock %}

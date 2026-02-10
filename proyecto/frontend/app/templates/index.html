@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block custom_style %}
+<style>
+    /* Fondo con un ligero gradiente radial para dar profundidad */
+    body {
+        background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f0f 100%);
+        color: white;
+    }
+
+    .hero-wrapper {
+        min-height: calc(100vh - 150px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    /* El logo de la Llama: Usamos un emoji o un icono SVG */
+    .llama-logo {
+        font-size: 5rem;
+        background: #045eef;
+        width: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 30px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 30px rgba(4, 94, 239, 0.5);
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-15px); }
+        100% { transform: translateY(0px); }
+    }
+
+    .main-title {
+        font-size: 5rem;
+        font-weight: 800;
+        letter-spacing: -2px;
+        margin-bottom: 10px;
+    }
+
+    .text-blue {
+        color: #045eef;
+    }
+
+    .subtitle {
+        font-size: 1.4rem;
+        color: #b0b0b0;
+        max-width: 600px;
+        margin-bottom: 40px;
+    }
+
+    /* Botones estilo cristal (Glassmorphism) */
+    .btn-container {
+        display: flex;
+        gap: 20px;
+    }
+
+    .btn-main {
+        background: #045eef;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 15px;
+        font-weight: bold;
+        text-decoration: none;
+        transition: all 0.3s;
+        border: none;
+    }
+
+    .btn-main:hover {
+        background: #034acb;
+        transform: scale(1.05);
+        color: white;
+    }
+
+    .btn-secondary-outline {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        padding: 15px 40px;
+        border-radius: 15px;
+        font-weight: bold;
+        text-decoration: none;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s;
+    }
+
+    .btn-secondary-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    /* Decoración de fondo */
+    .blur-blob {
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: rgba(4, 94, 239, 0.2);
+        filter: blur(80px);
+        border-radius: 50%;
+        z-index: -1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-wrapper">
+    <div class="blur-blob" style="top: 20%; left: 15%;"></div>
+    <div class="blur-blob" style="bottom: 10%; right: 10%; background: rgba(0, 212, 255, 0.1);"></div>
+
+    <div class="llama-logo">
+        🦙
+    </div>
+
+    <h1 class="main-title">
+        <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+    </h1>
+
+    <p class="subtitle">
+        El siguiente nivel de los Machine Learning.
+    </p>
+
+    <div class="btn-container">
+        {% if current_user.is_authenticated %}
+            <a href="#" class="btn-main">Ir a mis Chats</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="btn-main">Iniciar Sesión</a>
+            <a href="{{ url_for('login') }}" class="btn-secondary-outline">Registrarse</a>
+        {% endif %}
+    </div>
+
+    <div class="mt-5 d-flex align-items-center" style="color: #4ade80; font-size: 0.9rem;">
+        <span class="me-2" style="width: 10px; height: 10px; background: #4ade80; border-radius: 50%; display: inline-block; box-shadow: 0 0 10px #4ade80;"></span>
+        Sistema Distribuido Online
+    </div>
+</div>
+{% endblock %}
