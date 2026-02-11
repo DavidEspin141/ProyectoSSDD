@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LlamaChat - Chat IA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f0f 100%);
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar - Chats recientes */
+        .sidebar {
+            width: 280px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .llama-logo-small {
+            font-size: 2rem;
+            background: #045eef;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(4, 94, 239, 0.4);
+        }
+
+        .app-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .text-blue {
+            color: #045eef;
+        }
+
+        .sidebar h2 {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 25px;
+            background: #045eef;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(4, 94, 239, 0.3);
+        }
+
+        .new-chat-btn:hover {
+            background: #034acb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(4, 94, 239, 0.4);
+        }
+
+        .chat-item {
+            padding: 14px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .chat-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(4, 94, 239, 0.5);
+            transform: translateX(5px);
+        }
+
+        .chat-item.active {
+            background: rgba(4, 94, 239, 0.2);
+            border-color: #045eef;
+        }
+
+        /* Panel principal de conversación */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: transparent;
+            position: relative;
+        }
+
+        /* Decoración de fondo (blur blobs) */
+        .blur-blob {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: rgba(4, 94, 239, 0.15);
+            filter: blur(100px);
+            border-radius: 50%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .chat-header {
+            padding: 20px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .chat-header .llama-logo-header {
+            font-size: 2.5rem;
+            background: #045eef;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(4, 94, 239, 0.5);
+        }
+
+        .chat-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .message {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: rgba(4, 94, 239, 0.15);
+            border-color: rgba(4, 94, 239, 0.3);
+            align-self: flex-end;
+            max-width: 80%;
+        }
+
+        .message.assistant {
+            background: rgba(255, 255, 255, 0.05);
+            align-self: flex-start;
+            max-width: 80%;
+        }
+
+        .message-icon {
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-icon {
+            background: #045eef;
+            box-shadow: 0 0 15px rgba(4, 94, 239, 0.4);
+        }
+
+        .message.assistant .message-icon {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .message-content {
+            color: #e0e0e0;
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        .message-label {
+            font-weight: bold;
+            color: #045eef;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        /* Área de input */
+        .input-area {
+            padding: 25px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 15px;
+            max-width: 1000px;
+            margin: 0 auto;
+            align-items: flex-end;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 15px;
+            resize: none;
+            font-family: inherit;
+            outline: none;
+            max-height: 150px;
+            transition: all 0.3s;
+        }
+
+        #message-input:focus {
+            border-color: #045eef;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 20px rgba(4, 94, 239, 0.2);
+        }
+
+        #message-input::placeholder {
+            color: #b0b0b0;
+        }
+
+        #send-button {
+            padding: 15px 35px;
+            background: #045eef;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(4, 94, 239, 0.3);
+        }
+
+        #send-button:hover {
+            background: #034acb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(4, 94, 239, 0.4);
+        }
+
+        #send-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        .empty-state .llama-logo {
+            font-size: 5rem;
+            background: #045eef;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 30px rgba(4, 94, 239, 0.5);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .empty-state h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .empty-state p {
+            font-size: 1.2rem;
+            max-width: 500px;
+            color: #b0b0b0;
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #4ade80;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            z-index: 10;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px #4ade80;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(4, 94, 239, 0.5);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(4, 94, 239, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar: Chats recientes -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="llama-logo-small">🦙</div>
+                <div class="app-name">
+                    <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+                </div>
+            </div>
+
+            <button class="new-chat-btn" onclick="newChat()">+ Nuevo Chat</button>
+            
+            <h2>Chats recientes</h2>
+            <div id="recent-chats">
+                <div class="chat-item" onclick="loadChat(1)">¿Cómo funciona LlamaChat?</div>
+                <div class="chat-item" onclick="loadChat(2)">Ayuda con programación</div>
+                <div class="chat-item" onclick="loadChat(3)">Conversación anterior</div>
+            </div>
+        </div>
+
+        <!-- Panel principal de conversación -->
+        <div class="main-panel">
+            <!-- Blur blobs decorativos -->
+            <div class="blur-blob" style="top: 10%; left: 30%;"></div>
+            <div class="blur-blob" style="bottom: 20%; right: 20%; background: rgba(0, 212, 255, 0.1);"></div>
+
+            <div class="chat-header">
+                <div class="llama-logo-header">🦙</div>
+                <h1>
+                    <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+                </h1>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state">
+                    <div class="llama-logo">🦙</div>
+                    <h1>
+                        <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+                    </h1>
+                    <p>El siguiente nivel de los Machine Learning. ¿En qué puedo ayudarte hoy?</p>
+                </div>
+            </div>
+
+            <!-- Input de texto + botón -->
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Introducir texto..." 
+                        rows="1"
+                        onkeypress="handleKeyPress(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button id="send-button" onclick="sendMessage()">Enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        // Auto-resize del textarea
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        }
+
+        // Función para enviar mensaje
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const messageText = input.value.trim();
+            
+            if (messageText === '') return;
+
+            // Limpiar el estado vacío si existe
+            const chatMessages = document.getElementById('chat-messages');
+            const emptyState = chatMessages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            // Añadir mensaje del usuario
+            addMessage('user', messageText);
+            
+            // Limpiar input y resetear altura
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Deshabilitar botón mientras procesa
+            const sendButton = document.getElementById('send-button');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Procesando...';
+            
+            // Simular respuesta de la IA (esto se conectará con el backend)
+            setTimeout(() => {
+                addMessage('assistant', 'Esta es una respuesta simulada de LlamaChat. Aquí se mostrará la respuesta del modelo de IA una vez conectado con el backend mediante Flask.');
+                sendButton.disabled = false;
+                sendButton.textContent = 'Enviar';
+            }, 1500);
+        }
+
+        // Función para añadir mensaje al chat
+        function addMessage(type, content) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const label = type === 'user' ? 'Tú' : 'LlamaChat';
+            const icon = type === 'user' ? '👤' : '🦙';
+            
+            messageDiv.innerHTML = `
+                <div class="message-icon">${icon}</div>
+                <div class="message-content">
+                    <div class="message-label">${label}</div>
+                    <div>${content}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Manejar Enter para enviar (Shift+Enter para nueva línea)
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Funciones placeholder para chats recientes
+        function newChat() {
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = `
+                <div class="empty-state">
+                    <div class="llama-logo">🦙</div>
+                    <h1>
+                        <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+                    </h1>
+                    <p>El siguiente nivel de los Machine Learning. ¿En qué puedo ayudarte hoy?</p>
+                </div>
+            `;
+            
+            // Eliminar selección activa
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+
+        function loadChat(chatId) {
+            // Marcar como activo
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            alert('Cargar chat ' + chatId + ' - Esta funcionalidad se implementará con el backend');
+        }
+    </script>
+</body>
+</html>

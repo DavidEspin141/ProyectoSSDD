@@ -128,7 +128,7 @@
 
     <div class="btn-container">
         {% if current_user.is_authenticated %}
-            <a href="#" class="btn-main">Ir a mis Chats</a>
+            <a href="/chat" class="btn-main">Ir a mis Chats</a>
         {% else %}
             <a href="{{ url_for('login') }}" class="btn-main">Iniciar Sesión</a>
             <a href="{{ url_for('login') }}" class="btn-secondary-outline">Registrarse</a>

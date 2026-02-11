@@ -52,6 +52,11 @@ def signup():
 def profile():
     return render_template('profile.html')
 
+@app.route('/chat')
+@login_required
+def chat():
+    return render_template('chat.html')
+
 @app.route('/logout')
 @login_required
 def logout():
