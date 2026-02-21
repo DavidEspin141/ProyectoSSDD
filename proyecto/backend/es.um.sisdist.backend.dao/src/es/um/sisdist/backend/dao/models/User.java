@@ -4,9 +4,10 @@
 package es.um.sisdist.backend.dao.models;
 
 import es.um.sisdist.backend.dao.models.utils.UserUtils;
+import es.um.sisdist.backend.dao.models.Conversation;
+import java.util.List;
 
-public class User
-{
+public class User {
     private String id;
     private String email;
     private String password_hash;
@@ -14,7 +15,9 @@ public class User
 
     private String token;
 
-    private int visits;
+    //private int visits;
+    private List<Conversation> conversations; // Lista de chats del user
+    //private Stats
 
     /**
      * @return the id
@@ -25,6 +28,22 @@ public class User
     }
 
     /**
+     * @return the conversations
+     */
+    public List<Conversation> getConversations()
+    {
+        return conversations;
+    }
+
+    /**
+     * @param conversations the conversations to set
+     */
+    public void setConversations(final List<Conversation> conversations)
+    {
+        this.conversations = conversations;
+    }
+
+    /** 
      * @param id the id to set
      */
     public void setId(final String uid)
@@ -98,7 +117,7 @@ public class User
 
     /**
      * @return the visits
-     */
+     
     public int getVisits()
     {
         return visits;
@@ -106,33 +125,33 @@ public class User
 
     /**
      * @param visits the visits to set
-     */
+     
     public void setVisits(final int visits)
     {
         this.visits = visits;
     }
-
-    public User(String email, String password_hash, String name, String tOKEN, int visits)
+    */
+    public User(String email, String password_hash, String name, String tOKEN)
     {
-        this(email, email, password_hash, name, tOKEN, visits);
+        this(email, email, password_hash, name, tOKEN);
         this.id = UserUtils.md5pass(email);
     }
 
-    public User(String id, String email, String password_hash, String name, String tOKEN, int visits)
+    public User(String id, String email, String password_hash, String name, String tOKEN, List<Conversation> conversations)
     {
         this.id = id;
         this.email = email;
         this.password_hash = password_hash;
         this.name = name;
         token = tOKEN;
-        this.visits = visits;
+        this.conversations = new java.util.ArrayList<>(conversations);
     }
 
     @Override
     public String toString()
     {
         return "User [id=" + id + ", email=" + email + ", password_hash=" + password_hash + ", name=" + name
-                + ", TOKEN=" + token + ", visits=" + visits + "]";
+                + ", TOKEN=" + token + ", conversations=" + conversations + "]";
     }
 
     public User()
