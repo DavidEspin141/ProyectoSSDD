@@ -5,17 +5,23 @@ option java_package = "es.um.sisdist.backend.grpc";
 
 package es.um.sisdist.backend.grpc;
 
-service GrpcService
-{
-    rpc Ping(PingRequest) returns (PingResponse);
+// El mensaje que envía el usuario
+message ChatRequest {
+    string user_id = 1;   // Para identificar y autenticar al usuario 
+    string dialogue_id = 2;   // Para mantener el hilo de la conversación
+    string prompt = 3;       // El texto que escribe el usuario
 }
 
-message PingRequest
-{
-	int32 v = 1;
+// El mensaje que responde el servidor
+message ChatResponse {
+	string dialogue_id = 1; 	// Confirmación de la sesión
+    string answer = 2;			// Respuesta generada al prompt
+    long timestamp = 3;   		// Marca de tiempo para ordenar la conversación
 }
 
-message PingResponse
-{
-	int32 v = 1;
+// Definición del servicio
+service LLMService {
+    // Procesa un prompt y devuelve la respuesta completa
+    rpc processPrompt (ChatRequest) returns (ChatResponse);
 }
+
