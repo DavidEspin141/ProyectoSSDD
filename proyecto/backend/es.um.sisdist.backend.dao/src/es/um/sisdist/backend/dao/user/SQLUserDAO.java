@@ -8,6 +8,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import es.um.sisdist.backend.dao.models.User;
@@ -84,7 +86,7 @@ public class SQLUserDAO implements IUserDAO
                     result.getString(3), // pwhash
                     result.getString(4), // name
                     result.getString(5), // token
-                    result.getInt(6))); // visits
+                    new ArrayList<>())); // conversations
         } catch (SQLException e)
         {
             return Optional.empty();

@@ -24,6 +24,31 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase
 		responseObserver.onNext(PingResponse.newBuilder().setV(request.getV()).build());
 		responseObserver.onCompleted();
 	}
+	
+	//NUEVO: METODO PARA CONTESTAR A LAS CONSULTAS ENTRANTES DEL CLIENTE
+	@Override
+	public void getChatStream(ChatRequest request, StreamObserver<ChatResponse> responseObserver) {
+	    // 1. Extraemos los datos de la petición
+	    String dialogueId = request.getDialogueId();
+	    String prompt = request.getPrompt();
+    
+	    // 2. Aquí iría la lógica de tu "cerebro" o modelo de lenguaje (el análisis)
+	    String textoAnalizado = "He analizado tu mensaje: '" + prompt + "'. Aquí tienes mi respuesta...";
+
+	    // 3. Construimos el objeto de respuesta siguiendo tu estructura .proto
+	    // El tipo 'long' en proto3 mapea directamente a 'long' en Java [cite: 951]
+	    ChatResponse response = ChatResponse.newBuilder()
+        	    .setDialogueId(dialogueId)          // Campo 1: Confirmamos la sesión
+        	    .setAnswer(textoAnalizado)          // Campo 2: La respuesta generada
+        	    .setTimestamp(System.currentTimeMillis()) // Campo 3: Marca de tiempo para el orden
+        	    .build();
+
+	    // 4. Enviamos la respuesta al cliente [cite: 1313, 1324]
+	    responseObserver.onNext(response);
+
+	    // 5. Cerramos el flujo de comunicación [cite: 1313, 1324]
+	    responseObserver.onCompleted();
+	}
 
 
 /*

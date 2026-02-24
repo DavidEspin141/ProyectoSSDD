@@ -1,11 +1,8 @@
 package es.um.sisdist.backend.dao.models;
 
-import es.um.sisdist.backend.dao.models.StatusConversation;
-import es.um.sisdist.backend.dao.models.Dialogue;
-
-import java.util.List;
-import java.util.ArrayList;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 public class Conversation implements Serializable {
 
     private String dialogue_id;
@@ -54,5 +51,13 @@ public class Conversation implements Serializable {
     public void setDialogue(List<Dialogue> dialogue)
     {
         this.dialogue = new ArrayList<>(dialogue);
+    }
+
+    public void setUrlEnd(String string) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setUrlNext(String string) {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 }
