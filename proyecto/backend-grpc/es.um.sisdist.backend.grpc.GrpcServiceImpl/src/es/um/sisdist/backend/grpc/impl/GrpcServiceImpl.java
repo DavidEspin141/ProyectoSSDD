@@ -16,14 +16,6 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase
 		super();
 		this.logger = logger;
 	}
-
-	@Override
-	public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) 
-	{
-		logger.info("Recived PING request, value = " + request.getV());
-		responseObserver.onNext(PingResponse.newBuilder().setV(request.getV()).build());
-		responseObserver.onCompleted();
-	}
 	
 	//NUEVO: METODO PARA CONTESTAR A LAS CONSULTAS ENTRANTES DEL CLIENTE
 	@Override
