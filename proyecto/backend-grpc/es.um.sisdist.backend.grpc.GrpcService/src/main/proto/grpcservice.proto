@@ -15,8 +15,8 @@ message ChatRequest {
 // El mensaje que responde el servidor
 message ChatResponse {
     string dialogue_id = 1; 	// Confirmación de la sesión
-    string answer = 2;			// Respuesta generada al prompt
-    int32 timestamp = 3;   		// Marca de tiempo para ordenar la conversación
+    string response = 2;			// Respuesta generada al prompt
+    int64 timestamp = 3;   		// Marca de tiempo para ordenar la conversación
 }
 
 // Definición del servicio

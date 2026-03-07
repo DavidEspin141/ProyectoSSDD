@@ -53,11 +53,11 @@ public class Conversation implements Serializable {
         this.dialogue = new ArrayList<>(dialogue);
     }
 
-    public void setUrlEnd(String string) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void setUrlEnd(String urlend) {
+        this.urlEnd = urlend;
     }
 
-    public void setUrlNext(String string) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void setUrlNext(String urlnext) {
+        this.urlNext = urlnext;
     }
 }

@@ -1,6 +1,4 @@
-/**
- *
- */
+
 package es.um.sisdist.backend.Service.impl;
 
 import java.util.List;
@@ -22,10 +20,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 
-/**
- * @author dsevilla
- *
- */
+
 public class AppLogicImpl
 {
     IDAOFactory daoFactory;
@@ -96,14 +91,11 @@ public class AppLogicImpl
     }
     
     
-    //NUEVO A REVISAR
-    
-    // Dentro de AppLogicImpl.java
 	public String pedirRespuestaIA(String prompt, String userId, String dialogueId) {
-	    // 1. (Opcional) Podrías usar el DAO para validar el token del usuario [cite: 674, 740]
+	    // Se puede usar el DAO para validar el token del usuario 
 	    // User user = dao.getUserByToken(token); 
 	
-	    // 2. Construimos la petición gRPC usando el Builder generado [cite: 1108, 1114]
+	    // 2. Construimos la petición gRPC usando el Builder generado 
 	    ChatRequest request = ChatRequest.newBuilder()
 	            .setUserId(userId)      // Campo 1: Identificador del usuario
 	            .setDialogueId(dialogueId) // Campo 2: ID para mantener el hilo/contexto
@@ -111,13 +103,13 @@ public class AppLogicImpl
         	    .build();
 	
 	    try {
-	        // 3. Enviamos la petición y recibimos la respuesta de forma síncrona [cite: 1264, 1297]
+	        // 3. Enviamos la petición y recibimos la respuesta de forma síncrona
 	        ChatResponse response = blockingStub.processPrompt(request);
 	        
 	        System.out.println("Respuesta recibida a las: " + response.getTimestamp());
 	        
 	        // 4. Devolvemos el texto generado por la IA [cite: 1149]
-	        return response.getAnswer();
+	        return response.getResponse();
 	    } catch (StatusRuntimeException e) {
 	        return "Error al conectar con el motor de IA";
 	    }
@@ -202,7 +194,7 @@ public Dialogue enviarMensajeEIA(String prompt, String userId, String dialogueId
         // 5. Creamos el objeto Dialogue con la respuesta obtenida
         Dialogue nuevoMensaje = new Dialogue(
             prompt, 
-            response.getAnswer(), 
+            response.getResponse(), 
             response.getTimestamp()
         );
 

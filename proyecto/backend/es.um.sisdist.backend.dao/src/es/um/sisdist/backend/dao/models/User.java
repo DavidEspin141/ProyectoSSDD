@@ -1,6 +1,3 @@
-/**
- *
- */
 package es.um.sisdist.backend.dao.models;
 
 import es.um.sisdist.backend.dao.models.utils.UserUtils;

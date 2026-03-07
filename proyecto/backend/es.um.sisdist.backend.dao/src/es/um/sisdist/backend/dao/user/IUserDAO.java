@@ -12,6 +12,5 @@ public interface IUserDAO
 
     public Optional<User> getUserByEmail(String id);
 
-//EN PRINCIPIO SUPONGO QUE TENDREMOS QUE GENERAR OTRO DAO PARA LAS CONVERSACIONES, PERO DE FORMA PROVISIONAL LO PONGO AQUI
     public void updateConversations(String userId, List<Conversation> conversations);
 }

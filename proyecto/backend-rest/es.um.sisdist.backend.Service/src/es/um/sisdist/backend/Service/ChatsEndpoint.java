@@ -48,8 +48,10 @@ public class ChatsEndpoint {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConversations(@PathParam("userId") String userId) {
         Optional<User> user = logic.getUserById(userId); // Método a implementar en logic
-        if (user == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+        if (!user.isPresent()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                           .entity("Usuario no encontrado")
+                           .build();
         }
         User usuario= user.get();
         return Response.ok(usuario.getConversations()).build(); //
