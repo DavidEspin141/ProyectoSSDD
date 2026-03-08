@@ -19,6 +19,7 @@ import es.um.sisdist.backend.grpc.LLMServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import es.um.sisdist.models.UserDTO;
 
 
 public class AppLogicImpl
@@ -116,105 +117,123 @@ public class AppLogicImpl
 	}
 	
 	public Conversation crearNuevaConversacion(String userId, String newId) {
-    // 1. Buscamos al usuario en la base de datos
-    Optional<User> userOpt = getUserById(userId);
+        // Buscamos al usuario en la base de datos
+        Optional<User> userOpt = getUserById(userId);
     
-    if (userOpt.isPresent()) {
+        if (userOpt.isPresent()) {
         User user = userOpt.get();
         
-        // 2. Si la lista de conversaciones es nula, la inicializamos
-        if (user.getConversations() == null) {
+            // Si la lista de conversaciones es nula, la inicializamos
+            if (user.getConversations() == null) {
             user.setConversations(new java.util.ArrayList<>());
-        }
+            }
 
-        // 3. Creamos la nueva instancia de Conversation
-        // Usamos READY como estado inicial
-        Conversation nuevaConv = new Conversation(
-            newId, 
-            StatusConversation.READY, 
-            new java.util.ArrayList<>()
-        );
+            // Creamos la nueva instancia de Conversation
+            // Usamos READY como estado inicial
+            Conversation nuevaConv = new Conversation(
+                newId, 
+                StatusConversation.READY, 
+                new java.util.ArrayList<>()
+            );
 
-        // 4. Añadimos la conversación a la lista del usuario
-        user.getConversations().add(nuevaConv);
+            //Añadimos la conversación a la lista del usuario
+            user.getConversations().add(nuevaConv);
 
-        // 5. Persistimos los cambios en la base de datos
-        // Nota: Tu interfaz IUserDAO debería tener un método update o similar
-        //PENDIENTE
+        // Persistimos los cambios en la base de datos
         //dao.updateConversations(user.getId(), user.getConversations());
-        
         return nuevaConv;
-    }
+        }
     
-    return null; // O lanzar una excepción si el usuario no existe
-}
+        return null; // O lanzar una excepción si el usuario no existe
+    }
 
-public Conversation obtenerConversacion(String userId, String dialogueId) {
-    // 1. Recuperamos al usuario de la base de datos/DAO
-    Optional<User> userOpt = getUserById(userId);
+    public Conversation obtenerConversacion(String userId, String dialogueId) {
+        //Recuperamos al usuario de la base de datos/DAO
+        Optional<User> userOpt = getUserById(userId);
 
-    if (userOpt.isPresent()) {
-        User user = userOpt.get();
-        List<Conversation> listaConvs = user.getConversations();
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            List<Conversation> listaConvs = user.getConversations();
 
-        if (listaConvs != null) {
-            // 2. Buscamos en la lista la conversación que coincida con el ID
-            return listaConvs.stream()
-                .filter(c -> c.getDialogue_id().equals(dialogueId))
-                .findFirst()
-                .orElse(null); // Si no la encuentra, devuelve null
+            if (listaConvs != null) {
+                // Buscamos en la lista la conversación que coincida con el ID
+                return listaConvs.stream()
+                    .filter(c -> c.getDialogue_id().equals(dialogueId))
+                    .findFirst()
+                    .orElse(null); // Si no la encuentra, devuelve null
+            }
+        }
+    
+        // Si el usuario no existe o no tiene conversaciones
+        return null;
+    }
+
+    public Dialogue enviarMensajeEIA(String prompt, String userId, String dialogueId) {
+        // Buscamos la conversación para actualizarla
+        Conversation conv = obtenerConversacion(userId, dialogueId);
+        if (conv == null) return null;
+
+        // Cambiamos el estado a BUSY mientras esperamos a la IA
+        conv.setStatus(StatusConversation.BUSY);
+        // (Opcional) Guardar estado BUSY en DAO si quieres persistencia inmediata
+
+        try {
+            // Preparamos la petición gRPC
+            ChatRequest request = ChatRequest.newBuilder()
+                    .setUserId(userId)
+                    .setDialogueId(dialogueId)
+                    .setPrompt(prompt)
+                    .build();
+
+            // Llamada al servidor gRPC (Motor de IA)
+            // Usamos el método que definimos en tu .proto 
+            ChatResponse response = blockingStub.processPrompt(request);
+
+            // Creamos el objeto Dialogue con la respuesta obtenida
+            Dialogue nuevoMensaje = new Dialogue(
+                prompt, 
+                response.getResponse(), 
+                response.getTimestamp()
+            );
+
+            // Añadimos el mensaje al historial de la conversación
+            conv.getDialogue().add(nuevoMensaje);
+
+            // Volvemos a poner la conversación en READY
+            conv.setStatus(StatusConversation.READY);
+
+            // PERSISTENCIA: Guardamos los cambios en el DAO para que no se pierdan
+            dao.updateConversations(userId, getUserById(userId).get().getConversations());
+
+            return nuevoMensaje;
+
+        } catch (StatusRuntimeException e) {
+            // Si gRPC falla, volvemos a READY para que el usuario pueda reintentar
+            conv.setStatus(StatusConversation.READY);
+            logger.severe("Error llamando a gRPC: " + e.getStatus());
+            return new Dialogue(prompt, "Error: No pude contactar con la IA.", System.currentTimeMillis());
         }
     }
-    
-    // Si el usuario no existe o no tiene conversaciones
-    return null;
-}
+    // Toma el DTO, verifica duplicados, crea la entidad User y la guarda en BD.
+    public Optional<User> registerUser(UserDTO dto) {
+        // Verificamos si el email ya está registrado
+        if (dao.getUserByEmail(dto.getEmail()).isPresent()) {
+            return Optional.empty(); 
+        }
 
-public Dialogue enviarMensajeEIA(String prompt, String userId, String dialogueId) {
-    // 1. Buscamos la conversación para actualizarla
-    Conversation conv = obtenerConversacion(userId, dialogueId);
-    if (conv == null) return null;
-
-    // 2. Cambiamos el estado a BUSY mientras esperamos a la IA
-    conv.setStatus(StatusConversation.BUSY);
-    // (Opcional) Guardar estado BUSY en DAO si quieres persistencia inmediata
-
-    try {
-        // 3. Preparamos la petición gRPC
-        ChatRequest request = ChatRequest.newBuilder()
-                .setUserId(userId)
-                .setDialogueId(dialogueId)
-                .setPrompt(prompt)
-                .build();
-
-        // 4. Llamada al servidor gRPC (Motor de IA)
-        // Usamos el método que definimos en tu .proto (ej: processPrompt o getChatResponse)
-        ChatResponse response = blockingStub.processPrompt(request);
-
-        // 5. Creamos el objeto Dialogue con la respuesta obtenida
-        Dialogue nuevoMensaje = new Dialogue(
-            prompt, 
-            response.getResponse(), 
-            response.getTimestamp()
+        // Creamos el nuevo objeto User. 
+        // El constructor genera un MD5 del password y un ID automáticamente.
+        User newUser = new User(
+            dto.getEmail(),
+            UserUtils.md5pass(dto.getPassword()), 
+            dto.getName(),
+            "TOKEN_INICIAL"
         );
 
-        // 6. Añadimos el mensaje al historial de la conversación
-        conv.getDialogue().add(nuevoMensaje);
+        // Lo guardamos en MySQL
+        boolean success = dao.insertUser(newUser); 
 
-        // 7. Volvemos a poner la conversación en READY
-        conv.setStatus(StatusConversation.READY);
-
-        // 8. PERSISTENCIA: Guardamos los cambios en el DAO para que no se pierdan
-        dao.updateConversations(userId, getUserById(userId).get().getConversations());
-
-        return nuevoMensaje;
-
-    } catch (StatusRuntimeException e) {
-        // Si gRPC falla, volvemos a READY para que el usuario pueda reintentar
-        conv.setStatus(StatusConversation.READY);
-        logger.severe("Error llamando a gRPC: " + e.getStatus());
-        return new Dialogue(prompt, "Error: No pude contactar con la IA.", System.currentTimeMillis());
+        return success ? Optional.of(newUser) : Optional.empty();
     }
-}
 	
 }

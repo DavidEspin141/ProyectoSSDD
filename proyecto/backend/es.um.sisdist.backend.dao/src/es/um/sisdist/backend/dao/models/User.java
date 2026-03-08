@@ -130,8 +130,12 @@ public class User {
     */
     public User(String email, String password_hash, String name, String tOKEN)
     {
-        this(email, email, password_hash, name, tOKEN);
         this.id = UserUtils.md5pass(email);
+        this.email = email;
+        this.password_hash = password_hash;
+        this.name = name;
+        this.token = tOKEN;
+        this.conversations = new java.util.ArrayList<>();
     }
 
     public User(String id, String email, String password_hash, String name, String tOKEN, List<Conversation> conversations)

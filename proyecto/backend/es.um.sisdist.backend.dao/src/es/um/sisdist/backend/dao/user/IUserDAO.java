@@ -13,4 +13,6 @@ public interface IUserDAO
     public Optional<User> getUserByEmail(String id);
 
     public void updateConversations(String userId, List<Conversation> conversations);
+
+    public boolean insertUser (User user); 
 }

@@ -1,10 +1,13 @@
-from flask import Flask, render_template, send_from_directory, url_for, request, redirect
+import requests
+from flask import Flask, render_template, send_from_directory, url_for, request, redirect, flash
 from flask_login import LoginManager, login_manager, current_user, login_user, login_required, logout_user
 # Usuarios
 from models import users, User
 
 # Login
 from forms import LoginForm, SignupForm
+
+REST_API_URL = "http://backend-rest:8080/Service/u"
 
 app = Flask(__name__, static_url_path='')
 login_manager = LoginManager()
@@ -29,23 +32,62 @@ def login():
         return redirect(url_for('index'))
     else:
         error = None
-        form = LoginForm(None if request.method != 'POST' else request.form)
-        if request.method == "POST" and  form.validate():
-            if form.email.data != 'admin@um.es' or form.password.data != 'admin':
-                error = 'Invalid Credentials. Please try again.'
-            else:
-                user = User(1, 'admin', form.email.data.encode('utf-8'),
-                            form.password.data.encode('utf-8'))
-                users.append(user)
-                login_user(user, remember=form.remember_me.data)
-                return redirect(url_for('index'))
+        form = LoginForm(request.form)
+        if request.method == "POST" and form.validate():
+            payload = {
+                "email": form.email.data,
+                "password": form.password.data
+            }
+            
+            try:
+                # Enviamos las credenciales a Java para validar
+                response = requests.post(f"{REST_API_URL}/login", json=payload, timeout=5)
+                
+                if response.status_code == 200:
+                    user_data = response.json()
+                    
+                    # Instanciamos el usuario de Flask usando los datos que devolvió Java
+                    user = User(user_data['id'], 
+                                user_data['name'], 
+                                user_data['email'], 
+                                user_data.get('password', '').encode('utf-8'))
+                    
+                    # Lo añadimos a la lista en memoria de Flask-Login para mantener la sesión
+                    users.append(user) 
+                    login_user(user, remember=form.remember_me.data)
+                    
+                    return redirect(url_for('index'))
+                else:
+                    error = 'Credenciales inválidas.'
+            except requests.exceptions.RequestException:
+                error = "Error de conexión con el backend."
 
-        return render_template('login.html', form=form,  error=error)
+    return render_template('login.html', form=form, error=error)
 
-@app.route('/signup')
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    form = SignupForm()
+    form = SignupForm(request.form)
+    if request.method == 'POST' and form.validate():
+        payload = {
+            "name": form.name.data,
+            "email": form.email.data,
+            "password": form.password.data
+        }
+        
+        try:
+            # Enviamos el registro a Java
+            response = requests.post(f"{REST_API_URL}/register", json=payload, timeout=5)
+            print(f"DEBUG: Java respondió con código {response.status_code}") # <--- AÑADE ESTO
+            if response.status_code == 200:
+                flash("Cuenta creada con éxito. Ya puedes iniciar sesión.", "success")
+                return redirect(url_for('login'))
+            else:
+                flash("El email ya existe o hubo un error.", "error")
+        except requests.exceptions.RequestException:
+            flash("Error de conexión con el backend.", "error")
+            
     return render_template('signup.html', form=form)
+
 
 @app.route('/profile')
 @login_required
@@ -66,7 +108,8 @@ def logout():
 @login_manager.user_loader
 def load_user(user_id):
     for user in users:
-        if user.id == int(user_id):
+        # Comparamos directamente como strings
+        if str(user.id) == str(user_id):
             return user
     return None
 

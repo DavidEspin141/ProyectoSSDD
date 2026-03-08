@@ -5,9 +5,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
+import es.um.sisdist.backend.dao.models.Conversation;
+import es.um.sisdist.backend.dao.models.Dialogue;
+import es.um.sisdist.backend.dao.models.StatusConversation;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import es.um.sisdist.backend.dao.models.User;
 
@@ -16,10 +19,8 @@ public class SQLUserDAO implements IUserDAO
 {
     Optional<Connection> conn;
 
-    public SQLUserDAO()
-    {
+    public SQLUserDAO(){
         // Generate an optional from a direct connection attempt
-
         Connection connection = null;
         try
         {
@@ -39,7 +40,25 @@ public class SQLUserDAO implements IUserDAO
         }
         conn = Optional.ofNullable(connection);
     }
-
+    // Ejecuta la consulta SQL para guardar la fila en la tabla users.
+    @Override
+    public boolean insertUser(User user) {
+        if (conn.isEmpty()) return false;
+        try {
+            PreparedStatement stm = conn.get().prepareStatement(
+                "INSERT INTO users (id, email, password_hash, name, token) VALUES (?, ?, ?, ?, ?)"
+            );
+            stm.setString(1, user.getId());
+            stm.setString(2, user.getEmail());
+            stm.setString(3, user.getPassword_hash());
+            stm.setString(4, user.getName());
+            stm.setString(5, user.getToken());
+            return stm.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
     @Override
     public Optional<User> getUserById(String id)
@@ -163,4 +182,6 @@ public class SQLUserDAO implements IUserDAO
             e.printStackTrace();
         }
     }
+
+
 }

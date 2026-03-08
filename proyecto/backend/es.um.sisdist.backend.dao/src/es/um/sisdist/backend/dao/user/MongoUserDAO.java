@@ -22,6 +22,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 import es.um.sisdist.backend.dao.models.User;
+import es.um.sisdist.backend.dao.models.Conversation;
+import java.util.List;
 
 /**
  * @author dsevilla
@@ -61,5 +63,14 @@ public class MongoUserDAO implements IUserDAO
     {
         Optional<User> user = Optional.ofNullable(collection.find(eq("email", id)).first());
         return user;
+    }
+    @Override
+    public boolean insertUser(User user) {
+        // Método no implementado para MongoDB temporalmente
+        return false; 
+    }
+    @Override
+    public void updateConversations(String userId, List<Conversation> conversations) {
+        // Método no implementado temporalmente para MongoDB
     }
 }

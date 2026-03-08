@@ -12,8 +12,6 @@ public class UserDTO
 
     private String token;
 
-    private int visits;
-
     /**
      * @return the id
      */
@@ -94,31 +92,12 @@ public class UserDTO
         token = tOKEN;
     }
 
-    /**
-     * @return the visits
-     */
-    public int getVisits()
-    {
-        return visits;
-    }
-
-    /**
-     * @param visits the visits to set
-     */
-    public void setVisits(int visits)
-    {
-        this.visits = visits;
-    }
-
-    public UserDTO(String id, String email, String password, String name, String tOKEN, int visits)
-    {
-        super();
+    public UserDTO(String id, String email, String password, String name, String token) {
         this.id = id;
         this.email = email;
         this.password = password;
         this.name = name;
-        token = tOKEN;
-        this.visits = visits;
+        this.token = token;
     }
 
     public UserDTO()

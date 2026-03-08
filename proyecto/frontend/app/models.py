@@ -10,6 +10,8 @@ class User(UserMixin):
         self.id = id
         self.name = name
         self.email = email
+        if isinstance(password, str):
+            password = password.encode('utf-8')
         self.password = hashlib.sha256(password).hexdigest()
         self.is_admin = is_admin
 
