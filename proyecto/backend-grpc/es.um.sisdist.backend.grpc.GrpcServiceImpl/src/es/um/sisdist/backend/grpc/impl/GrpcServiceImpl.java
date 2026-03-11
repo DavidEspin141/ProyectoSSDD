@@ -93,7 +93,7 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
                                 isReady = true; 
                             }
                         } catch (java.io.IOException e) {
-                            // EL CAMBIO CLAVE: Capturamos el cuelgue del servidor Python
+                            //Capturamos el cuelgue del servidor Python
                             if (e.getMessage().contains("received no bytes")) {
                                 logger.info("IA ocupada (Cierre de conexión por código 102). Reintentando...");
                                 // No hacemos nada, el bucle volverá a preguntar en 1 segundo
