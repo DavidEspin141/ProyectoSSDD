@@ -156,7 +156,7 @@ public class SQLUserDAO implements IUserDAO
                 // 1. Insertar o actualizar conversación
                 String sqlConv = "INSERT INTO conversations (dialogue_id, user_id, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?";
                 PreparedStatement psConv = conn.get().prepareStatement(sqlConv);
-                psConv.setString(1, conv.getDialogue_id());
+                psConv.setString(1, conv.getDialogueId());
                 psConv.setString(2, userId);
                 psConv.setString(3, conv.getStatus().name());
                 psConv.setString(4, conv.getStatus().name());
@@ -164,14 +164,14 @@ public class SQLUserDAO implements IUserDAO
 
                 // 2. Limpiar mensajes antiguos para evitar duplicados
                 PreparedStatement psDel = conn.get().prepareStatement("DELETE FROM dialogues WHERE dialogue_id = ?");
-                psDel.setString(1, conv.getDialogue_id());
+                psDel.setString(1, conv.getDialogueId());
                 psDel.executeUpdate();
 
                 // 3. Insertar historial de mensajes actualizado
                 String sqlDiag = "INSERT INTO dialogues (dialogue_id, prompt, response, timestamp) VALUES (?, ?, ?, ?)";
                 for (Dialogue d : conv.getDialogue()) {
                     PreparedStatement psDiag = conn.get().prepareStatement(sqlDiag);
-                    psDiag.setString(1, conv.getDialogue_id());
+                    psDiag.setString(1, conv.getDialogueId());
                     psDiag.setString(2, d.getPrompt());
                     psDiag.setString(3, d.getResponse()); 
                     psDiag.setLong(4, d.getTimestamp());

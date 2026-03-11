@@ -365,39 +365,6 @@
             color: #b0b0b0;
         }
 
-        /* Status indicator */
-        .status-indicator {
-            position: fixed;
-            bottom: 20px;
-            right: 30px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #4ade80;
-            font-size: 0.9rem;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            padding: 10px 20px;
-            border-radius: 50px;
-            border: 1px solid rgba(74, 222, 128, 0.3);
-            z-index: 10;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            background: #4ade80;
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 10px #4ade80;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
         /* Scrollbar personalizado */
         ::-webkit-scrollbar {
             width: 10px;
@@ -429,7 +396,7 @@
             </div>
 
             <button class="new-chat-btn" onclick="newChat()">+ Nuevo Chat</button>
-            
+
             <h2>Chats recientes</h2>
             <div id="recent-chats">
                 <div class="chat-item" onclick="loadChat(1)">¿Cómo funciona LlamaChat?</div>
@@ -445,7 +412,9 @@
             <div class="blur-blob" style="bottom: 20%; right: 20%; background: rgba(0, 212, 255, 0.1);"></div>
 
             <div class="chat-header">
-                <div class="llama-logo-header">🦙</div>
+                <a href="{{ url_for('index') }}" class="llama-logo-link" aria-label="Volver al inicio">
+                    <div class="llama-logo-header">🦙</div>
+                </a>
                 <h1>
                     <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
                 </h1>
@@ -464,9 +433,9 @@
             <!-- Input de texto + botón -->
             <div class="input-area">
                 <div class="input-container">
-                    <textarea 
-                        id="message-input" 
-                        placeholder="Introducir texto..." 
+                    <textarea
+                        id="message-input"
+                        placeholder="Introducir texto..."
                         rows="1"
                         onkeypress="handleKeyPress(event)"
                         oninput="autoResize(this)"
@@ -477,71 +446,104 @@
         </div>
     </div>
 
-    
-
     <script>
-        // Auto-resize del textarea
+        let dialogueId = null; // mantenemos conversación actual en el cliente
+
         function autoResize(textarea) {
             textarea.style.height = 'auto';
             textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
         }
 
-        // Función para enviar mensaje
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const messageText = input.value.trim();
-            
-            if (messageText === '') return;
-
-            // Limpiar el estado vacío si existe
+        // helper: muestra/borra empty state
+        function ensureNotEmptyState() {
             const chatMessages = document.getElementById('chat-messages');
             const emptyState = chatMessages.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.remove();
-            }
-
-            // Añadir mensaje del usuario
-            addMessage('user', messageText);
-            
-            // Limpiar input y resetear altura
-            input.value = '';
-            input.style.height = 'auto';
-            
-            // Deshabilitar botón mientras procesa
-            const sendButton = document.getElementById('send-button');
-            sendButton.disabled = true;
-            sendButton.textContent = 'Procesando...';
-            
-            // Simular respuesta de la IA (esto se conectará con el backend)
-            setTimeout(() => {
-                addMessage('assistant', 'Esta es una respuesta simulada de LlamaChat. Aquí se mostrará la respuesta del modelo de IA una vez conectado con el backend mediante Flask.');
-                sendButton.disabled = false;
-                sendButton.textContent = 'Enviar';
-            }, 1500);
+            if (emptyState) emptyState.remove();
         }
 
-        // Función para añadir mensaje al chat
+        function setSendingState(isSending) {
+            const sendButton = document.getElementById('send-button');
+            sendButton.disabled = isSending;
+            sendButton.textContent = isSending ? 'Procesando...' : 'Enviar';
+        }
+
         function addMessage(type, content) {
             const chatMessages = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
-            
+
             const label = type === 'user' ? 'Tú' : 'LlamaChat';
             const icon = type === 'user' ? '👤' : '🦙';
-            
+
             messageDiv.innerHTML = `
                 <div class="message-icon">${icon}</div>
                 <div class="message-content">
                     <div class="message-label">${label}</div>
-                    <div>${content}</div>
+                    <div>${escapeHtml(content)}</div>
                 </div>
             `;
-            
+
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Manejar Enter para enviar (Shift+Enter para nueva línea)
+        // evitar inyección HTML
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const messageText = input.value.trim();
+            if (!messageText) return;
+
+            ensureNotEmptyState();
+            addMessage('user', messageText);
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            setSendingState(true);
+
+            try {
+                const res = await fetch('/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt: messageText,
+                        dialogue_id: dialogueId
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    const err = data.error || 'Error desconocido llamando a /send';
+                    addMessage('assistant', `[ERROR] ${err}`);
+                    return;
+                }
+
+                // actualizar dialogueId si viene
+                if (data.dialogue_id) {
+                    dialogueId = data.dialogue_id;
+                }
+
+                // mostrar respuesta: preferimos data.response, si no, algo razonable
+                const reply = data.response || '(sin respuesta del backend)';
+                addMessage('assistant', reply);
+
+            } catch (e) {
+                addMessage('assistant', `[ERROR] No se pudo contactar con el servidor: ${e}`);
+            } finally {
+                setSendingState(false);
+            }
+        }
+
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -549,8 +551,13 @@
             }
         }
 
-        // Funciones placeholder para chats recientes
-        function newChat() {
+        async function newChat() {
+            // reset cliente
+            dialogueId = null;
+
+            // reset servidor (si implementas /chat/reset)
+            try { await fetch('/chat/reset', { method: 'POST' }); } catch (_) {}
+
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.innerHTML = `
                 <div class="empty-state">
@@ -561,20 +568,13 @@
                     <p>El siguiente nivel de los Machine Learning. ¿En qué puedo ayudarte hoy?</p>
                 </div>
             `;
-            
-            // Eliminar selección activa
-            document.querySelectorAll('.chat-item').forEach(item => {
-                item.classList.remove('active');
-            });
+
+            document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
         }
 
         function loadChat(chatId) {
-            // Marcar como activo
-            document.querySelectorAll('.chat-item').forEach(item => {
-                item.classList.remove('active');
-            });
+            document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
             event.target.classList.add('active');
-            
             alert('Cargar chat ' + chatId + ' - Esta funcionalidad se implementará con el backend');
         }
     </script>

@@ -105,20 +105,21 @@ public class ChatsEndpoint {
      * Método auxiliar para evitar duplicar la lógica de envío y HATEOAS
      */
     private Response processMessage(String userId, String dialogueId, String prompt) {
-        // 1. Llamada a gRPC para obtener la respuesta analizada
-        // Usamos el método que definimos antes en AppLogicImpl
-        logic.enviarMensajeEIA(prompt, userId, dialogueId);
+    logic.enviarMensajeEIA(prompt, userId, dialogueId);
 
-        // 2. Recuperamos la conversación actualizada para devolverla
-        Conversation conv = logic.obtenerConversacion(userId, dialogueId);
-        
-        // 3. Inyectamos los enlaces HATEOAS dinámicamente
-        String baseUrl = "/u/" + userId + "/dialogue/" + dialogueId;
-        // conv.setUrlNext(baseUrl + "/next"); // Si añadiste estos campos a tu modelo
-        // conv.setUrlEnd(baseUrl + "/end");
-
-        return Response.ok(conv).build();
+    Conversation conv = logic.obtenerConversacion(userId, dialogueId);
+    if (conv == null) {
+        return Response.status(Status.NOT_FOUND)
+                .entity("Conversación no encontrada tras enviarMensajeEIA (no creada o no persistida)")
+                .type(MediaType.TEXT_PLAIN)
+                .build();
     }
+
+    conv.setUrlNext("/u/" + userId + "/dialogue/" + dialogueId + "/next");
+    conv.setUrlEnd("/u/" + userId + "/dialogue/" + dialogueId + "/end");
+
+    return Response.ok(conv).build();
+}
 
     
     

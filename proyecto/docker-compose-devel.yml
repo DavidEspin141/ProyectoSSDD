@@ -21,6 +21,9 @@ services:
     image: dsevilla/ssdd-llamachat-dummy:1.0
     ports:
       - 5020:5020
+    environment:
+      - DUMMY=true  # <-- Esto obliga a Python a NO cargar la IA real
+      - PORT=5020
 
   db-mysql:
     build: db-mysql/.
@@ -48,6 +51,10 @@ services:
     ports:
       - 50051:50051
     env_file: sql.env
+    environment:
+      - LLAMACHAT_HOST=ssdd-llamachat
+      - LLAMACHAT_PORT=5020
+      - JAVA_TOOL_OPTIONS=-Djdk.httpclient.allowRestrictedHeaders=expect,connection
     depends_on:
       db-mysql:
         condition: service_healthy

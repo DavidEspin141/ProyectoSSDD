@@ -1,6 +1,10 @@
 import requests
 from flask import Flask, render_template, send_from_directory, url_for, request, redirect, flash
 from flask_login import LoginManager, login_manager, current_user, login_user, login_required, logout_user
+from flask import jsonify, request, session
+from flask_login import login_required, current_user
+import requests
+import os
 # Usuarios
 from models import users, User
 
@@ -45,6 +49,7 @@ def login():
                 
                 if response.status_code == 200:
                     user_data = response.json()
+                    print("DEBUG user_data:", user_data)
                     
                     # Instanciamos el usuario de Flask usando los datos que devolvió Java
                     user = User(user_data['id'], 
@@ -98,6 +103,105 @@ def profile():
 @login_required
 def chat():
     return render_template('chat.html')
+
+@app.route('/api/chats', methods=['GET'])
+@login_required
+def api_chats():
+    try:
+        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue", timeout=5)
+        if r.status_code != 200:
+            return jsonify({"error": "No se pudieron cargar las conversaciones"}), 502
+        # backend-rest devuelve una lista de Conversation
+        return jsonify(r.json()), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Error de conexión con backend-rest: {e}"}), 502
+
+
+@app.route('/api/chats/<dialogue_id>', methods=['GET'])
+@login_required
+def api_chat(dialogue_id):
+    try:
+        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", timeout=5)
+        if r.status_code != 200:
+            return jsonify({"error": "Conversación no encontrada"}), 404
+        return jsonify(r.json()), 200
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Error de conexión con backend-rest: {e}"}), 502
+
+@app.route('/send', methods=['POST'])
+@login_required
+def api_chat_send():
+    data = request.get_json(silent=True) or {}
+    prompt = (data.get('prompt') or '').strip()
+    if not prompt:
+        return jsonify({"error": "Campo 'prompt' vacío"}), 400
+
+    user_id = str(current_user.id)
+
+    # dialogue_id: viene del cliente o se guarda en sesión
+    dialogue_id = (data.get('dialogue_id') or session.get('dialogue_id') or '').strip()
+
+    base_url = f"{REST_API_URL}/{user_id}/dialogue"
+    payload = {"prompt": prompt}
+
+    try:
+        if not dialogue_id:
+            resp = requests.post(base_url, json=payload, timeout=20)
+        else:
+            resp = requests.post(f"{base_url}/{dialogue_id}/next", json=payload, timeout=20)
+
+        # Si backend devuelve error
+        if resp.status_code != 200:
+            return jsonify({
+                "error": "Backend REST devolvió error",
+                "status_code": resp.status_code,
+                "details": resp.text
+            }), 502
+
+        # Caso CLAVE: 200 pero cuerpo vacío
+        if not resp.content or not resp.text.strip():
+            return jsonify({
+                "error": "Backend REST devolvió 200 pero sin contenido (Content-Length 0)",
+                "status_code": resp.status_code,
+                "dialogue_id": dialogue_id  # devolvemos el que tengamos
+            }), 502
+
+        # Intentar parsear JSON
+        try:
+            conv = resp.json()
+        except ValueError:
+            return jsonify({
+                "error": "Backend REST devolvió contenido no-JSON",
+                "status_code": resp.status_code,
+                "raw": resp.text[:500]
+            }), 502
+
+        # Guardar el dialogue_id (cubriendo nombres posibles)
+        new_dialogue_id = (
+            conv.get("dialogue_id") or
+            conv.get("dialogueId") or
+            conv.get("id") or
+            dialogue_id
+        )
+        if new_dialogue_id:
+            session["dialogue_id"] = new_dialogue_id
+
+        # Extraer última respuesta si viene dialogue[]
+        last_response = None
+        dialogue_list = conv.get("dialogue")
+        if isinstance(dialogue_list, list) and dialogue_list:
+            last = dialogue_list[-1]
+            if isinstance(last, dict):
+                last_response = last.get("response")
+
+        return jsonify({
+            "dialogue_id": new_dialogue_id,
+            "response": last_response,
+            "conversation": conv
+        }), 200
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": "Error conectando con backend REST", "details": str(e)}), 502
 
 @app.route('/logout')
 @login_required

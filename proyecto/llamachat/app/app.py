@@ -132,6 +132,7 @@ def resp(token):
                         http.HTTPStatus.PROCESSING)
     else:
         return jsonify(res)
+    
 
 @app.route('/healthcheck', methods=['GET'])
 def healthcheck():

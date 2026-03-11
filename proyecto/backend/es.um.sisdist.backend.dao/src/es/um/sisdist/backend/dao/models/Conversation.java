@@ -15,15 +15,16 @@ public class Conversation implements Serializable {
     public Conversation(String dialogue_id, StatusConversation status, List<Dialogue> dialogues)
     {
         this.dialogue_id = dialogue_id;
-        this.status = StatusConversation.READY;
+        this.status = status;
         this.dialogue = new ArrayList<>(dialogues);
     }
 
-    public Conversation()
-    {
+    public Conversation() {
+        this.status = StatusConversation.READY;
+        this.dialogue = new ArrayList<>();
     }
 
-    public String getDialogue_id()
+    public String getDialogueId()
     {
         return dialogue_id;
     }
@@ -59,5 +60,13 @@ public class Conversation implements Serializable {
 
     public void setUrlNext(String urlnext) {
         this.urlNext = urlnext;
+    }
+    
+    public String getUrlNext(){
+    	return urlNext;
+    }
+    
+    public String getUrlEnd(){
+    	return urlEnd;
     }
 }

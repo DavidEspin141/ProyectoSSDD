@@ -14,105 +14,128 @@ import io.grpc.stub.StreamObserver;
 
 class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase 
 {
-	private Logger logger;
-	private final HttpClient httpClient;
-	
+    private Logger logger;
+    private final HttpClient httpClient;
+    
     public GrpcServiceImpl(Logger logger) 
     {
-		super();
-		this.logger = logger;
-		// Inicializamos un cliente HTTP estándar de Java
+        super();
+        this.logger = logger;
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-	}
-	
-	//METODO PARA CONTESTAR A LAS CONSULTAS ENTRANTES DEL CLIENTE
-	@Override
-	public void processPrompt(ChatRequest request, StreamObserver<ChatResponse> responseObserver) {
-	    //Extraemos los datos de la petición
-	    String dialogueId = request.getDialogueId();
-	    String prompt = request.getPrompt();
+    }
+    
+    @Override
+    public void processPrompt(ChatRequest request, StreamObserver<ChatResponse> responseObserver) {
+        String dialogueId = request.getDialogueId();
+        String prompt = request.getPrompt();
         
+        // Inicializamos con un mensaje de error por si algo falla
         String aiResponse = "Error en la comunicación con LlamaChat";
-		try {
+        
+        try {
             String llamaHost = System.getenv().getOrDefault("LLAMACHAT_HOST", "ssdd-llamachat");
             String llamaPort = System.getenv().getOrDefault("LLAMACHAT_PORT", "5020");
             String baseUrl = "http://" + llamaHost + ":" + llamaPort;
 
-            //Enviar petición POST inicial
-            String jsonInput = "{\"prompt\": \"" + prompt.replace("\"", "\\\"") + "\"}";
+            // 1. Limpieza del prompt para evitar romper el formato JSON
+            String cleanPrompt = prompt.replace("\\", "\\\\")
+                                       .replace("\"", "\\\"")
+                                       .replace("\n", "\\n")
+                                       .replace("\r", "\\r");
+
+            String jsonInput = String.format("{\"prompt\": \"%s\"}", cleanPrompt);
+
+            // 2. Petición POST inicial (El "Pedido")
             HttpRequest postReq = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/prompt"))
                     .header("Content-Type", "application/json")
+                    .header("Accept", "*/*")
+                    .header("User-Agent", "curl/8.5.0")
+                    .header("Expect", "") // Requiere JAVA_TOOL_OPTIONS en docker-compose
                     .POST(HttpRequest.BodyPublishers.ofString(jsonInput))
                     .build();
 
             HttpResponse<String> postRes = httpClient.send(postReq, HttpResponse.BodyHandlers.ofString());
 
-            // Comprobar si fue aceptada (202) y extraer la URL de la respuesta
             if (postRes.statusCode() == 202) {
                 String location = postRes.headers().firstValue("Location").orElse(null);
                 
                 if (location != null) {
                     boolean isReady = false;
                     
-                    //Bucle de Polling: Preguntar hasta que esté listo (200 OK)
+                    // 3. Bucle de Polling con gestión de excepciones para el código 102
                     while (!isReady) {
-                        Thread.sleep(1000); // Esperar 1 segundo entre intentos para no saturar
+                        Thread.sleep(1000); // Esperar entre intentos
                         
                         HttpRequest getReq = HttpRequest.newBuilder()
                                 .uri(URI.create(baseUrl + location))
+                                .header("Accept", "application/json")
+                                .header("User-Agent", "curl/8.5.0")
                                 .GET()
                                 .build();
                         
-                        HttpResponse<String> getRes = httpClient.send(getReq, HttpResponse.BodyHandlers.ofString());
-                        
-                        if (getRes.statusCode() == 200) {
-                            isReady = true;
-                            // Extraer el campo "answer" del JSON de Python
-                            String jsonBody = getRes.body();
-                            aiResponse = extractAnswerFromJson(jsonBody);
-                        } else if (getRes.statusCode() != 102 && getRes.statusCode() != 204) {
-                            // Si da un error distinto a "Procesando" o "Inicializando", salimos
-                            logger.warning("Error en el polling: " + getRes.statusCode());
-                            break;
+                        try {
+                            HttpResponse<String> getRes = httpClient.send(getReq, HttpResponse.BodyHandlers.ofString());
+                            int status = getRes.statusCode();
+
+                            if (status == 200) {
+                                isReady = true;
+                                aiResponse = extractAnswerFromJson(getRes.body());
+                                logger.info("¡Éxito! Respuesta de IA recibida.");
+                            } else if (status == 102 || status == 204) {
+                                logger.info("La IA sigue procesando (Status " + status + ")...");
+                            } else {
+                                logger.warning("Error inesperado en el polling: " + status);
+                                aiResponse = "La IA devolvió un error (Código " + status + ")";
+                                isReady = true; 
+                            }
+                        } catch (java.io.IOException e) {
+                            // EL CAMBIO CLAVE: Capturamos el cuelgue del servidor Python
+                            if (e.getMessage().contains("received no bytes")) {
+                                logger.info("IA ocupada (Cierre de conexión por código 102). Reintentando...");
+                                // No hacemos nada, el bucle volverá a preguntar en 1 segundo
+                            } else {
+                                // Si es un error de red distinto, lo lanzamos fuera
+                                throw e;
+                            }
                         }
                     }
                 }
             } else {
-                logger.warning("La IA no aceptó el prompt. Código: " + postRes.statusCode());
+                aiResponse = "La IA no aceptó el prompt inicial. Código: " + postRes.statusCode();
+                logger.warning(aiResponse);
             }
 
         } catch (Exception e) {
-            logger.severe("Fallo de conexión: " + e.getMessage());
+            aiResponse = "Excepción detectada en Java: " + e.getMessage();
+            logger.severe("Fallo de conexión: " + e.toString());
         }   
 
-	    // Construimos el objeto de respuesta 
-	    ChatResponse response = ChatResponse.newBuilder()
-        	    .setDialogueId(dialogueId)          
-        	    .setResponse(aiResponse)          
-        	    .setTimestamp(System.currentTimeMillis()) // Marca de tiempo para el orden
-        	    .build();
+        // 4. Construcción y envío de la respuesta gRPC
+        ChatResponse response = ChatResponse.newBuilder()
+                .setDialogueId(dialogueId)          
+                .setResponse(aiResponse)          
+                .setTimestamp(System.currentTimeMillis())
+                .build();
 
-	    // Enviamos la respuesta al cliente 
-	    responseObserver.onNext(response);
-	    //Cerramos el flujo de comunicación 
-	    responseObserver.onCompleted();
-	}
-	// Método auxiliar para extraer el 'answer' del JSON de Python 
-	private String extractAnswerFromJson(String json) {
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    private String extractAnswerFromJson(String json) {
         try {
             String search = "\"answer\":";
             int startIndex = json.indexOf(search) + search.length();
             int firstQuote = json.indexOf("\"", startIndex) + 1;
             int lastQuote = json.lastIndexOf("\"");
-            // Reemplazamos los saltos de línea escapados por saltos reales
-            return json.substring(firstQuote, lastQuote).replace("\\n", "\n").replace("\\\"", "\"");
+            return json.substring(firstQuote, lastQuote)
+                       .replace("\\n", "\n")
+                       .replace("\\\"", "\"");
         } catch (Exception e) {
-            return "Respuesta recibida pero no se pudo parsear el JSON: " + json;
+            return "Error al procesar el JSON de la IA: " + json;
         }
     }
-
 }
