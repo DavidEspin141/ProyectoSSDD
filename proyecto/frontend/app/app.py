@@ -209,6 +209,12 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+@app.route('/chat/reset', methods=['POST'])
+@login_required
+def chat_reset():
+    session.pop('dialogue_id', None)
+    return '', 204
+
 @login_manager.user_loader
 def load_user(user_id):
     for user in users:

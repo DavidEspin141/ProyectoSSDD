@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -200,6 +201,7 @@
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -347,9 +349,17 @@
         }
 
         @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-            100% { transform: translateY(0px); }
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
         }
 
         .empty-state h1 {
@@ -384,6 +394,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Sidebar: Chats recientes -->
@@ -399,9 +410,7 @@
 
             <h2>Chats recientes</h2>
             <div id="recent-chats">
-                <div class="chat-item" onclick="loadChat(1)">¿Cómo funciona LlamaChat?</div>
-                <div class="chat-item" onclick="loadChat(2)">Ayuda con programación</div>
-                <div class="chat-item" onclick="loadChat(3)">Conversación anterior</div>
+                <div style="color:#b0b0b0; font-size: 14px;">Cargando conversaciones...</div>
             </div>
         </div>
 
@@ -433,13 +442,8 @@
             <!-- Input de texto + botón -->
             <div class="input-area">
                 <div class="input-container">
-                    <textarea
-                        id="message-input"
-                        placeholder="Introducir texto..."
-                        rows="1"
-                        onkeypress="handleKeyPress(event)"
-                        oninput="autoResize(this)"
-                    ></textarea>
+                    <textarea id="message-input" placeholder="Introducir texto..." rows="1"
+                        onkeypress="handleKeyPress(event)" oninput="autoResize(this)"></textarea>
                     <button id="send-button" onclick="sendMessage()">Enviar</button>
                 </div>
             </div>
@@ -513,7 +517,7 @@
             try {
                 const res = await fetch('/send', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: messageText,
                         dialogue_id: dialogueId
@@ -532,6 +536,10 @@
                 if (data.dialogue_id) {
                     dialogueId = data.dialogue_id;
                 }
+
+                // Si se acaba de crear conversación (o cambió), refrescamos sidebar y marcamos activo
+                await loadConversations();
+                markActiveConversation(dialogueId);
 
                 // mostrar respuesta: preferimos data.response, si no, algo razonable
                 const reply = data.response || '(sin respuesta del backend)';
@@ -556,7 +564,7 @@
             dialogueId = null;
 
             // reset servidor (si implementas /chat/reset)
-            try { await fetch('/chat/reset', { method: 'POST' }); } catch (_) {}
+            try { await fetch('/chat/reset', { method: 'POST' }); } catch (_) { }
 
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.innerHTML = `
@@ -570,13 +578,144 @@
             `;
 
             document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+            await loadConversations();
         }
 
-        function loadChat(chatId) {
-            document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
-            event.target.classList.add('active');
-            alert('Cargar chat ' + chatId + ' - Esta funcionalidad se implementará con el backend');
+        // -------------------------------
+        // Sidebar: conversaciones reales
+        // -------------------------------
+
+        async function loadConversations() {
+            const container = document.getElementById('recent-chats');
+            container.innerHTML = `<div style="color:#b0b0b0; font-size: 14px;">Cargando conversaciones...</div>`;
+
+            try {
+                const res = await fetch('/api/chats', { method: 'GET' });
+                const data = await res.json().catch(() => ([]));
+
+                if (!res.ok) {
+                    const err = (data && data.error) ? data.error : 'Error cargando /api/chats';
+                    container.innerHTML = `<div style="color:#ffb3b3; font-size: 14px;">${escapeHtml(err)}</div>`;
+                    return;
+                }
+
+                // data debe ser array de Conversation
+                renderConversationList(Array.isArray(data) ? data : []);
+            } catch (e) {
+                container.innerHTML = `<div style="color:#ffb3b3; font-size: 14px;">No se pudo contactar con el servidor: ${escapeHtml(e)}</div>`;
+            }
+        }
+
+        function renderConversationList(conversations) {
+            const container = document.getElementById('recent-chats');
+
+            if (!conversations.length) {
+                container.innerHTML = `<div style="color:#b0b0b0; font-size: 14px;">No hay conversaciones previas.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            // Si quieres: ordenar para que aparezcan “más recientes” arriba.
+            // OJO: esto depende de si viene dialogue[] con timestamp.
+            // Por defecto lo dejamos tal cual venga del backend.
+
+            for (const conv of conversations) {
+                const id = conv.dialogueId || conv.dialogue_id || conv.dialogue_id; // por si el JSON usa snake_case
+                const dialogueIdValue = id;
+
+                const item = document.createElement('div');
+                item.className = 'chat-item';
+                item.dataset.dialogueId = dialogueIdValue;
+
+                // muestra un preview del último prompt
+                let title = `Chat ${String(dialogueIdValue).slice(0, 8)}`;
+                const dialogues = conv.dialogue || [];
+                if (Array.isArray(dialogues) && dialogues.length) {
+                    const last = dialogues[dialogues.length - 1];
+                    if (last && last.prompt) {
+                        title = last.prompt.length > 30 ? (last.prompt.slice(0, 30) + '...') : last.prompt;
+                    }
+                }
+
+                item.textContent = title;
+
+                item.addEventListener('click', () => openConversation(dialogueIdValue, item));
+                container.appendChild(item);
+            }
+        }
+
+        // Activa visualmente el item + carga la conversación (para mensajes)
+        async function openConversation(selectedDialogueId, clickedElement) {
+            // activar estilos
+            document.querySelectorAll('#recent-chats .chat-item').forEach(i => i.classList.remove('active'));
+            if (clickedElement) clickedElement.classList.add('active');
+
+            dialogueId = selectedDialogueId;
+
+            // (Opcional recomendado) Cargar mensajes y pintarlos:
+            await loadConversationMessages(selectedDialogueId);
+        }
+
+        // Carga una conversación completa y renderiza los mensajes en pantalla
+        async function loadConversationMessages(selectedDialogueId) {
+            try {
+                const res = await fetch(`/api/chats/${encodeURIComponent(selectedDialogueId)}`, { method: 'GET' });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    const err = data.error || 'Error cargando conversación';
+                    addMessage('assistant', `[ERROR] ${err}`);
+                    return;
+                }
+
+                // data es Conversation con data.dialogue = [{prompt,response,timestamp}, ...]
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.innerHTML = ''; // limpia el panel
+                ensureNotEmptyState(); // (si no hay empty-state ya no hace nada)
+
+                const history = Array.isArray(data.dialogue) ? data.dialogue : [];
+                if (!history.length) {
+                    chatMessages.innerHTML = `
+                <div class="empty-state">
+                    <div class="llama-logo">🦙</div>
+                    <h1>
+                        <span style="color: white;">Llama</span><span class="text-blue">Chat</span>
+                    </h1>
+                    <p>Esta conversación no tiene mensajes todavía.</p>
+                </div>
+            `;
+                    return;
+                }
+
+                for (const d of history) {
+                    if (d.prompt) addMessage('user', d.prompt);
+                    if (d.response) addMessage('assistant', d.response);
+                }
+            } catch (e) {
+                addMessage('assistant', `[ERROR] No se pudo contactar con el servidor: ${e}`);
+            }
+        }
+
+        // Cargar conversaciones al abrir la página
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Resetea el chat activo guardado en sesión (para empezar limpio al entrar)
+            try { await fetch('/chat/reset', { method: 'POST' }); } catch (_) { }
+
+            // Limpia también el estado en el cliente
+            dialogueId = null;
+
+            // Carga sidebar
+            await loadConversations();
+        });
+
+        function markActiveConversation(id) {
+            if (!id) return;
+            document.querySelectorAll('#recent-chats .chat-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.dialogueId === id);
+            });
         }
     </script>
 </body>
+
 </html>
