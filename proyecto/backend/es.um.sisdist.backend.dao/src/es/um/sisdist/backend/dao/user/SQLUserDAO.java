@@ -183,5 +183,26 @@ public class SQLUserDAO implements IUserDAO
         }
     }
 
+    @Override
+    public boolean deleteConversation(String dialogueId) {
+        if (conn.isEmpty()) return false;
+        try {
+            // 1. Primero borramos todos los mensajes asociados a ese chat
+            PreparedStatement psDelDiag = conn.get().prepareStatement("DELETE FROM dialogues WHERE dialogue_id = ?");
+            psDelDiag.setString(1, dialogueId);
+            psDelDiag.executeUpdate();
+
+            // 2. Luego borramos la conversación en sí
+            PreparedStatement psDelConv = conn.get().prepareStatement("DELETE FROM conversations WHERE dialogue_id = ?");
+            psDelConv.setString(1, dialogueId);
+            
+            return psDelConv.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 
 }

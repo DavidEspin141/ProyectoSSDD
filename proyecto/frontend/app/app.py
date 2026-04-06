@@ -127,7 +127,16 @@ def api_chat(dialogue_id):
         return jsonify(r.json()), 200
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"Error de conexión con backend-rest: {e}"}), 502
-
+    
+@app.route('/api/chats/<dialogue_id>', methods=['DELETE'])
+@login_required
+def delete_chat(dialogue_id):
+    try:
+        r = requests.delete(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", timeout=5)
+        return jsonify({"status": "deleted"}), r.status_code
+    except:
+        return jsonify({"error": "No se pudo borrar"}), 502
+    
 @app.route('/send', methods=['POST'])
 @login_required
 def api_chat_send():

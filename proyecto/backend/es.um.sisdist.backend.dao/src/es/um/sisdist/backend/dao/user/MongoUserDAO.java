@@ -73,4 +73,10 @@ public class MongoUserDAO implements IUserDAO
     public void updateConversations(String userId, List<Conversation> conversations) {
         // Método no implementado temporalmente para MongoDB
     }
+
+    @Override
+    public boolean deleteConversation(String dialogueId) {
+        // Método no implementado temporalmente para MongoDB
+        return false;
+    }
 }

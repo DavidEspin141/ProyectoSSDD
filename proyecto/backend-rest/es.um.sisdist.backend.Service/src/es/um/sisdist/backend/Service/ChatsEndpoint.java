@@ -11,6 +11,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -105,21 +106,58 @@ public class ChatsEndpoint {
      * Método auxiliar para evitar duplicar la lógica de envío y HATEOAS
      */
     private Response processMessage(String userId, String dialogueId, String prompt) {
-    logic.enviarMensajeEIA(prompt, userId, dialogueId);
+        logic.enviarMensajeEIA(prompt, userId, dialogueId);
 
-    Conversation conv = logic.obtenerConversacion(userId, dialogueId);
-    if (conv == null) {
-        return Response.status(Status.NOT_FOUND)
-                .entity("Conversación no encontrada tras enviarMensajeEIA (no creada o no persistida)")
-                .type(MediaType.TEXT_PLAIN)
-                .build();
+        Conversation conv = logic.obtenerConversacion(userId, dialogueId);
+        if (conv == null) {
+            return Response.status(Status.NOT_FOUND)
+                    .entity("Conversación no encontrada tras enviarMensajeEIA (no creada o no persistida)")
+                    .type(MediaType.TEXT_PLAIN)
+                    .build();
+        }
+
+        conv.setUrlNext("/u/" + userId + "/dialogue/" + dialogueId + "/next");
+        conv.setUrlEnd("/u/" + userId + "/dialogue/" + dialogueId + "/end");
+
+        return Response.ok(conv).build();
     }
 
-    conv.setUrlNext("/u/" + userId + "/dialogue/" + dialogueId + "/next");
-    conv.setUrlEnd("/u/" + userId + "/dialogue/" + dialogueId + "/end");
+    /**
+     * 4. TERMINAR CHAT: Cambia el estado de la conversación a FINISHED.
+     */
+    @POST
+    @Path("/{dialogueId}/end")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response endConversation(
+            @PathParam("userId") String userId,
+            @PathParam("dialogueId") String dialogueId) {
+        
+        boolean finished = logic.finalizarConversacion(userId, dialogueId);
+        
+        if (finished) {
+            Conversation conv = logic.obtenerConversacion(userId, dialogueId);
+            return Response.ok(conv).build();
+        }
+        return Response.status(Response.Status.NOT_FOUND).build();
+    }
 
-    return Response.ok(conv).build();
-}
+    /**
+     * 5. ELIMINAR CHAT: Borra el log de la base de datos.
+     */
+    @DELETE
+    @Path("/{dialogueId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteConversation(
+            @PathParam("userId") String userId,
+            @PathParam("dialogueId") String dialogueId) {
+        
+        boolean deleted = logic.eliminarConversacion(userId, dialogueId);
+        
+        if (deleted) {
+            return Response.ok("{\"status\":\"deleted\"}").build();
+        }
+        return Response.status(Response.Status.NOT_FOUND).build();
+    }
 
     
     

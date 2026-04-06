@@ -240,5 +240,47 @@ public class AppLogicImpl
 
         return success ? Optional.of(newUser) : Optional.empty();
     }
+
+    /**
+     * Finaliza una conversación cambiando su estado a FINISHED.
+     * Así evitamos que se sigan enviando mensajes a este chat.
+     */
+    public boolean finalizarConversacion(String userId, String dialogueId) {
+        Optional<User> userOpt = getUserById(userId);
+        if (userOpt.isEmpty()) return false;
+
+        User user = userOpt.get();
+        if (user.getConversations() == null) return false;
+
+        // Buscamos la conversación
+        Conversation conv = user.getConversations().stream()
+            .filter(c -> dialogueId.equals(c.getDialogueId()))
+            .findFirst()
+            .orElse(null);
+
+        if (conv == null) return false;
+
+        // Cambiamos el estado y persistimos en la base de datos
+        conv.setStatus(StatusConversation.FINISHED);
+        dao.updateConversations(userId, user.getConversations());
+        return true;
+    }
+
+    /**
+     * Elimina una conversación de la lista del usuario y actualiza la BD.
+     */
+    public boolean eliminarConversacion(String userId, String dialogueId) {
+        Optional<User> userOpt = getUserById(userId);
+        if (userOpt.isEmpty()) return false;
+
+        User user = userOpt.get();
+        if (user.getConversations() != null) {
+            // Lo quitamos de la memoria temporal para mantener la coherencia
+            user.getConversations().removeIf(c -> dialogueId.equals(c.getDialogueId()));
+        }
+
+        // Ejecutamos la orden de destrucción masiva en MySQL
+        return dao.deleteConversation(dialogueId);
+    }
 	
 }

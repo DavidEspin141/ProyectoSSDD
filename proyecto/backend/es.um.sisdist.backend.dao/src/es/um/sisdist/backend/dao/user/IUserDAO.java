@@ -15,4 +15,6 @@ public interface IUserDAO
     public void updateConversations(String userId, List<Conversation> conversations);
 
     public boolean insertUser (User user); 
+    
+    public boolean deleteConversation(String dialogueId);
 }
