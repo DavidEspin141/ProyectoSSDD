@@ -30,6 +30,12 @@ def serve_static(path):
 def index():
     return render_template('index.html')
 
+def get_auth_headers():
+    token = session.get('jwt_token')
+    if token:
+        return {'Authorization': f'Bearer {token}'}
+    return {}
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -50,6 +56,8 @@ def login():
                 if response.status_code == 200:
                     user_data = response.json()
                     print("DEBUG user_data:", user_data)
+                    # Guardamos el token JWT en sesión para usarlo en futuras llamadas al backend
+                    session['jwt_token'] = user_data.get('token')
                     
                     # Instanciamos el usuario de Flask usando los datos que devolvió Java
                     user = User(user_data['id'], 
@@ -108,7 +116,7 @@ def chat():
 @login_required
 def api_chats():
     try:
-        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue", timeout=5)
+        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue", headers=get_auth_headers(), timeout=5)
         if r.status_code != 200:
             return jsonify({"error": "No se pudieron cargar las conversaciones"}), 502
         # backend-rest devuelve una lista de Conversation
@@ -121,7 +129,7 @@ def api_chats():
 @login_required
 def api_chat(dialogue_id):
     try:
-        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", timeout=5)
+        r = requests.get(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", headers=get_auth_headers(), timeout=5)
         if r.status_code != 200:
             return jsonify({"error": "Conversación no encontrada"}), 404
         return jsonify(r.json()), 200
@@ -132,7 +140,7 @@ def api_chat(dialogue_id):
 @login_required
 def delete_chat(dialogue_id):
     try:
-        r = requests.delete(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", timeout=5)
+        r = requests.delete(f"{REST_API_URL}/{current_user.id}/dialogue/{dialogue_id}", headers=get_auth_headers(), timeout=5)
         return jsonify({"status": "deleted"}), r.status_code
     except:
         return jsonify({"error": "No se pudo borrar"}), 502
@@ -155,9 +163,9 @@ def api_chat_send():
 
     try:
         if not dialogue_id:
-            resp = requests.post(base_url, json=payload, timeout=20)
+            resp = requests.post(base_url, json=payload, headers=get_auth_headers(), timeout=20)
         else:
-            resp = requests.post(f"{base_url}/{dialogue_id}/next", json=payload, timeout=20)
+            resp = requests.post(f"{base_url}/{dialogue_id}/next", json=payload, headers=get_auth_headers(), timeout=20)
 
         # Si backend devuelve error
         if resp.status_code != 200:
@@ -215,6 +223,7 @@ def api_chat_send():
 @app.route('/logout')
 @login_required
 def logout():
+    session.pop('jwt_token', None)  # Limpiamos el token JWT de sesión
     logout_user()
     return redirect(url_for('index'))
 

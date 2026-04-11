@@ -17,6 +17,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 
 
 @Path("/u/{userId}/dialogue")
@@ -29,12 +31,11 @@ public class ChatsEndpoint {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConversation(@PathParam("userId") String userId, @PathParam("dialogueId") String dialogueId) {
         
-        // 1. Buscamos la conversación en la lógica (que usa los DAO)
+        //Buscamos la conversación en la lógica
         Conversation conv = logic.obtenerConversacion(userId, dialogueId);
         
         if (conv == null) return Response.status(Status.NOT_FOUND).build();
 
-        // 2. Aquí es donde "ligamos" tus clases con las URLs de la imagen
         // Añadimos las URLs de navegación dinámicamente
         conv.setUrlNext("/u/" + userId + "/dialogue/" + dialogueId + "/next");
         conv.setUrlEnd("/u/" + userId + "/dialogue/" + dialogueId + "/end");
@@ -43,12 +44,12 @@ public class ChatsEndpoint {
     }
     
     /**
-     * 1. LISTAR CONVERSACIONES: Obtiene todos los chats de un usuario.
+     * LISTAR CONVERSACIONES: Obtiene todos los chats de un usuario.
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConversations(@PathParam("userId") String userId) {
-        Optional<User> user = logic.getUserById(userId); // Método a implementar en logic
+        Optional<User> user = logic.getUserById(userId); 
         if (!user.isPresent()) {
             return Response.status(Response.Status.NOT_FOUND)
                            .entity("Usuario no encontrado")
@@ -59,12 +60,15 @@ public class ChatsEndpoint {
     }
 
     /**
-     * 2. INICIAR CHAT: Crea una nueva Conversation y envía el primer prompt.
+     * INICIAR CHAT: Crea una nueva Conversation y envía el primer prompt.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createConversation(@PathParam("userId") String userId, Dialogue request) {
+    public Response createConversation(@PathParam("userId") String userId, Dialogue request,
+                                       @Context HttpHeaders headers) {
+        // Extraemos el token JWT del header Authorization
+        String token = extractToken(headers);
         // Generamos un ID único para la nueva charla
         String newId = java.util.UUID.randomUUID().toString();
         
@@ -72,11 +76,11 @@ public class ChatsEndpoint {
         logic.crearNuevaConversacion(userId, newId); 
         
         // Enviamos el primer mensaje (Llamada gRPC)
-        return processMessage(userId, newId, request.getPrompt());
+        return processMessage(userId, newId, request.getPrompt(), token);
     }
 
     /**
-     * 3. CONTINUAR CHAT: Envía un mensaje a una charla existente.
+     * CONTINUAR CHAT: Envía un mensaje a una charla existente.
      */
     @POST
     @Path("/{dialogueId}/next")
@@ -85,7 +89,9 @@ public class ChatsEndpoint {
     public Response nextStep(
             @PathParam("userId") String userId,
             @PathParam("dialogueId") String dialogueId,
-            Dialogue request) {
+            Dialogue request, @Context HttpHeaders headers) {
+        // Extraemos el token JWT del header Authorization
+        String token = extractToken(headers);
         
         // Verificamos si la conversación existe y si está READY
         Conversation conv = logic.obtenerConversacion(userId, dialogueId);
@@ -99,14 +105,14 @@ public class ChatsEndpoint {
                            .build();
         }
 
-        return processMessage(userId, dialogueId, request.getPrompt());
+        return processMessage(userId, dialogueId, request.getPrompt(), token);
     }
 
     /**
      * Método auxiliar para evitar duplicar la lógica de envío y HATEOAS
      */
-    private Response processMessage(String userId, String dialogueId, String prompt) {
-        logic.enviarMensajeEIA(prompt, userId, dialogueId);
+    private Response processMessage(String userId, String dialogueId, String prompt, String token) {
+        logic.enviarMensajeEIA(prompt, userId, dialogueId, token);
 
         Conversation conv = logic.obtenerConversacion(userId, dialogueId);
         if (conv == null) {
@@ -123,7 +129,7 @@ public class ChatsEndpoint {
     }
 
     /**
-     * 4. TERMINAR CHAT: Cambia el estado de la conversación a FINISHED.
+     * TERMINAR CHAT: Cambia el estado de la conversación a FINISHED.
      */
     @POST
     @Path("/{dialogueId}/end")
@@ -142,7 +148,7 @@ public class ChatsEndpoint {
     }
 
     /**
-     * 5. ELIMINAR CHAT: Borra el log de la base de datos.
+     * ELIMINAR CHAT: Borra el log de la base de datos.
      */
     @DELETE
     @Path("/{dialogueId}")
@@ -157,6 +163,17 @@ public class ChatsEndpoint {
             return Response.ok("{\"status\":\"deleted\"}").build();
         }
         return Response.status(Response.Status.NOT_FOUND).build();
+    }
+
+    /*
+    * Función auxiliar para extraer el JWT 
+    */
+    private String extractToken(HttpHeaders headers) {
+        String authHeader = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring("Bearer ".length()).trim();
+        }
+        return ""; // No se encontró un token válido
     }
 
     

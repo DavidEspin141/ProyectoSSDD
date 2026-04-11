@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import es.um.sisdist.backend.dao.DAOFactoryImpl;
 import es.um.sisdist.backend.dao.IDAOFactory;
 import es.um.sisdist.backend.dao.models.Conversation;
@@ -20,6 +22,10 @@ import es.um.sisdist.models.UserDTO;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.util.Date;
 
 
 public class AppLogicImpl
@@ -34,9 +40,10 @@ public class AppLogicImpl
     //private final GrpcServiceGrpc.GrpcServiceStub asyncStub;
 
     static AppLogicImpl instance = new AppLogicImpl();
+    //Clave con la que se cifrará los tokens JWT. 
+    public static final String SECRET_KEY = "LlamaChatSecretKeyParaSistemasDistribuidos2026!!!";
 
-    private AppLogicImpl()
-    {
+    private AppLogicImpl(){
         daoFactory = new DAOFactoryImpl();
         Optional<String> backend = Optional.ofNullable(System.getenv("DB_BACKEND"));
         
@@ -54,22 +61,18 @@ public class AppLogicImpl
                 // to avoid needing certificates.
                 .usePlaintext().build();
         blockingStub = LLMServiceGrpc.newBlockingStub(channel);
-        //asyncStub = GrpcServiceGrpc.newStub(channel);
     }
 
-    public static AppLogicImpl getInstance()
-    {
+    public static AppLogicImpl getInstance(){
         return instance;
     }
 
-    public Optional<User> getUserByEmail(String userId)
-    {
+    public Optional<User> getUserByEmail(String userId){
         Optional<User> u = dao.getUserByEmail(userId);
         return u;
     }
 
-    public Optional<User> getUserById(String userId)
-    {
+    public Optional<User> getUserById(String userId){
         return dao.getUserById(userId);
     }
 
@@ -77,15 +80,17 @@ public class AppLogicImpl
     // envía el usuario y pass, que se convierte a un DTO. De ahí
     // obtenemos la consulta a la base de datos, que nos retornará,
     // si procede,
-    public Optional<User> checkLogin(String email, String pass)
-    {
+    public Optional<User> checkLogin(String email, String pass){
         Optional<User> u = dao.getUserByEmail(email);
 
         if (u.isPresent())
         {
             String hashed_pass = UserUtils.md5pass(pass);
-            if (0 == hashed_pass.compareTo(u.get().getPassword_hash()))
+            if (0 == hashed_pass.compareTo(u.get().getPassword_hash())){
+                String tokenReal = generarJWT(u.get());
+                u.get().setToken(tokenReal);
                 return u;
+            }
         }
 
         return Optional.empty();
@@ -93,23 +98,21 @@ public class AppLogicImpl
     
     
 	public String pedirRespuestaIA(String prompt, String userId, String dialogueId) {
-	    // Se puede usar el DAO para validar el token del usuario 
-	    // User user = dao.getUserByToken(token); 
 	
-	    // 2. Construimos la petición gRPC usando el Builder generado 
+	    //Construimos la petición gRPC usando el Builder generado 
 	    ChatRequest request = ChatRequest.newBuilder()
-	            .setUserId(userId)      // Campo 1: Identificador del usuario
-	            .setDialogueId(dialogueId) // Campo 2: ID para mantener el hilo/contexto
-        	    .setPrompt(prompt)      // Campo 3: El texto del usuario
+	            .setUserId(userId)      //Identificador del usuario
+	            .setDialogueId(dialogueId) // ID para mantener el hilo/contexto
+        	    .setPrompt(prompt)      // El texto del usuario
         	    .build();
 	
 	    try {
-	        // 3. Enviamos la petición y recibimos la respuesta de forma síncrona
+	        //Enviamos la petición y recibimos la respuesta de forma síncrona
 	        ChatResponse response = blockingStub.processPrompt(request);
 	        
 	        System.out.println("Respuesta recibida a las: " + response.getTimestamp());
 	        
-	        // 4. Devolvemos el texto generado por la IA [cite: 1149]
+	        //Devolvemos el texto generado por la IA
 	        return response.getResponse();
 	    } catch (StatusRuntimeException e) {
 	        return "Error al conectar con el motor de IA";
@@ -168,57 +171,62 @@ public class AppLogicImpl
         return null;
     }
 
-    public Dialogue enviarMensajeEIA(String prompt, String userId, String dialogueId) {
-    Optional<User> userOpt = getUserById(userId);
-    if (userOpt.isEmpty()) return null;
+    public Dialogue enviarMensajeEIA(String prompt, String userId, String dialogueId, String token) {
+        Optional<User> userOpt = getUserById(userId);
+        if (userOpt.isEmpty()) return null;
 
-    User user = userOpt.get();
-    if (user.getConversations() == null) return null;
+        User user = userOpt.get();
+        if (user.getConversations() == null) return null;
 
-    Conversation conv = user.getConversations().stream()
-        .filter(c -> dialogueId.equals(c.getDialogueId()))
-        .findFirst()
-        .orElse(null);
+        Conversation conv = user.getConversations().stream()
+            .filter(c -> dialogueId.equals(c.getDialogueId()))
+            .findFirst()
+            .orElse(null);
 
-    if (conv == null) return null;
+        if (conv == null) return null;
 
-    if (conv.getDialogue() == null) {
-        conv.setDialogue(new java.util.ArrayList<>());
+        if (conv.getDialogue() == null) {
+            conv.setDialogue(new java.util.ArrayList<>());
+        }
+
+        conv.setStatus(StatusConversation.BUSY);
+
+        try {
+            ChatRequest request = ChatRequest.newBuilder()
+                .setUserId(userId)
+                .setDialogueId(dialogueId)
+                .setPrompt(prompt)
+                .build();
+            //Creamos los metadatos y metemos el token con el formato "Bearer <token>"
+            Metadata metadata = new Metadata();
+            metadata.put(Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER), "Bearer " + token);
+            //Creamos un nuevo stub que intercepta la llamada para pegarle los metadatos
+            LLMServiceGrpc.LLMServiceBlockingStub stubConAuth = 
+                blockingStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata));
+
+
+            ChatResponse response = stubConAuth.processPrompt(request);
+
+            Dialogue nuevoMensaje = new Dialogue(prompt, response.getResponse(), response.getTimestamp());
+            conv.getDialogue().add(nuevoMensaje);
+
+            conv.setStatus(StatusConversation.READY);
+            dao.updateConversations(userId, user.getConversations());
+
+            return nuevoMensaje;
+
+        } catch (StatusRuntimeException e) {
+            conv.setStatus(StatusConversation.READY);
+            logger.severe("Error llamando a gRPC: " + e.getStatus());
+
+            Dialogue errMsg = new Dialogue(prompt, "ERROR GRPC", System.currentTimeMillis());
+            conv.getDialogue().add(errMsg);
+
+            dao.updateConversations(userId, user.getConversations());
+
+            return errMsg;
+        }
     }
-
-    conv.setStatus(StatusConversation.BUSY);
-
-    try {
-        ChatRequest request = ChatRequest.newBuilder()
-            .setUserId(userId)
-            .setDialogueId(dialogueId)
-            .setPrompt(prompt)
-            .build();
-
-        ChatResponse response = blockingStub.processPrompt(request);
-
-        Dialogue nuevoMensaje = new Dialogue(prompt, response.getResponse(), response.getTimestamp());
-        conv.getDialogue().add(nuevoMensaje);
-
-        conv.setStatus(StatusConversation.READY);
-
-        // Persistir EXACTAMENTE el user/conversations que acabas de modificar
-        dao.updateConversations(userId, user.getConversations());
-
-        return nuevoMensaje;
-
-    } catch (StatusRuntimeException e) {
-        conv.setStatus(StatusConversation.READY);
-        logger.severe("Error llamando a gRPC: " + e.getStatus());
-
-        Dialogue errMsg = new Dialogue(prompt, "ERROR GRPC", System.currentTimeMillis());
-        conv.getDialogue().add(errMsg);
-
-        dao.updateConversations(userId, user.getConversations());
-
-        return errMsg;
-    }
-}
     // Toma el DTO, verifica duplicados, crea la entidad User y la guarda en BD.
     public Optional<User> registerUser(UserDTO dto) {
         // Verificamos si el email ya está registrado
@@ -232,7 +240,7 @@ public class AppLogicImpl
             dto.getEmail(),
             UserUtils.md5pass(dto.getPassword()), 
             dto.getName(),
-            "TOKEN_INICIAL"
+            "" // El token se generará al hacer login, no al registrar
         );
 
         // Lo guardamos en MySQL
@@ -281,6 +289,19 @@ public class AppLogicImpl
 
         // Ejecutamos la orden de destrucción masiva en MySQL
         return dao.deleteConversation(dialogueId);
+    }
+
+    private String generarJWT(User user) {
+        long tiempoExpiracion = 1000 * 60 * 60 * 24; // 24 horas en milisegundos
+
+        return Jwts.builder()
+                .setSubject(user.getEmail())                  // A quién pertenece
+                .claim("userId", user.getId())                // Guardamos el ID dentro del token
+                .claim("name", user.getName())                // Guardamos el nombre
+                .setIssuedAt(new Date())                      // Fecha de creación
+                .setExpiration(new Date(System.currentTimeMillis() + tiempoExpiracion)) // Caducidad
+                .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes()), SignatureAlgorithm.HS256) // Firma
+                .compact();
     }
 	
 }
