@@ -12,16 +12,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.um.sisdist.backend.grpc.ChatRequest;
 import es.um.sisdist.backend.grpc.ChatResponse;
-import es.um.sisdist.backend.grpc.LLMServiceGrpc; 
+import es.um.sisdist.backend.grpc.LLMServiceGrpc;
 import io.grpc.stub.StreamObserver;
 
-class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase 
-{
+class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase {
+
     private Logger logger;
     private final HttpClient httpClient;
-    
-    public GrpcServiceImpl(Logger logger) 
-    {
+
+    public GrpcServiceImpl(Logger logger) {
         super();
         this.logger = logger;
         this.httpClient = HttpClient.newBuilder()
@@ -29,15 +28,15 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
-    
+
     @Override
     public void processPrompt(ChatRequest request, StreamObserver<ChatResponse> responseObserver) {
         String dialogueId = request.getDialogueId();
         String prompt = request.getPrompt();
-        
+
         // Inicializamos con un mensaje de error por si algo falla
         String aiResponse = "Error en la comunicación con LlamaChat";
-        
+
         try {
             String llamaHost = System.getenv().getOrDefault("LLAMACHAT_HOST", "ssdd-llamachat");
             String llamaPort = System.getenv().getOrDefault("LLAMACHAT_PORT", "5020");
@@ -45,9 +44,9 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
 
             // 1. Limpieza del prompt para evitar romper el formato JSON
             String cleanPrompt = prompt.replace("\\", "\\\\")
-                                       .replace("\"", "\\\"")
-                                       .replace("\n", "\\n")
-                                       .replace("\r", "\\r");
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r");
 
             String jsonInput = String.format("{\"prompt\": \"%s\"}", cleanPrompt);
 
@@ -65,21 +64,21 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
 
             if (postRes.statusCode() == 202) {
                 String location = postRes.headers().firstValue("Location").orElse(null);
-                
+
                 if (location != null) {
                     boolean isReady = false;
-                    
+
                     // 3. Bucle de Polling con gestión de excepciones para el código 102
                     while (!isReady) {
                         Thread.sleep(1000); // Esperar entre intentos
-                        
+
                         HttpRequest getReq = HttpRequest.newBuilder()
                                 .uri(URI.create(baseUrl + location))
                                 .header("Accept", "application/json")
                                 .header("User-Agent", "curl/8.5.0")
                                 .GET()
                                 .build();
-                        
+
                         try {
                             HttpResponse<String> getRes = httpClient.send(getReq, HttpResponse.BodyHandlers.ofString());
                             int status = getRes.statusCode();
@@ -93,7 +92,7 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
                             } else {
                                 logger.warning("Error inesperado en el polling: " + status);
                                 aiResponse = "La IA devolvió un error (Código " + status + ")";
-                                isReady = true; 
+                                isReady = true;
                             }
                         } catch (java.io.IOException e) {
                             //Capturamos el cuelgue del servidor Python
@@ -115,12 +114,12 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
         } catch (Exception e) {
             aiResponse = "Excepción detectada en Java: " + e.getMessage();
             logger.severe("Fallo de conexión: " + e.toString());
-        }   
+        }
 
         // 4. Construcción y envío de la respuesta gRPC
         ChatResponse response = ChatResponse.newBuilder()
-                .setDialogueId(dialogueId)          
-                .setResponse(aiResponse)          
+                .setDialogueId(dialogueId)
+                .setResponse(aiResponse)
                 .setTimestamp(System.currentTimeMillis())
                 .build();
 
@@ -130,16 +129,16 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-private String extractAnswerFromJson(String json) {
-    try {
-        JsonNode root = MAPPER.readTree(json);
-        JsonNode answer = root.get("answer");
-        if (answer == null || answer.isNull()) {
-            return "Respuesta sin campo 'answer': " + json;
+    private String extractAnswerFromJson(String json) {
+        try {
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode answer = root.get("answer");
+            if (answer == null || answer.isNull()) {
+                return "Respuesta sin campo 'answer': " + json;
+            }
+            return answer.asText(); 
+        } catch (Exception e) {
+            return "Error al parsear JSON de la IA: " + e.getMessage() + " | raw=" + json;
         }
-        return answer.asText(); // <-- aquí ya devuelve ñ/á/é correctamente
-    } catch (Exception e) {
-        return "Error al parsear JSON de la IA: " + e.getMessage() + " | raw=" + json;
     }
-}
 }
