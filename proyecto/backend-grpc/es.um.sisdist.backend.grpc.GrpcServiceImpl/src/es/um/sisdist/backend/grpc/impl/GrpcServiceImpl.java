@@ -7,6 +7,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.logging.Logger;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import es.um.sisdist.backend.grpc.ChatRequest;
 import es.um.sisdist.backend.grpc.ChatResponse;
 import es.um.sisdist.backend.grpc.LLMServiceGrpc; 
@@ -125,17 +128,18 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase
         responseObserver.onCompleted();
     }
 
-    private String extractAnswerFromJson(String json) {
-        try {
-            String search = "\"answer\":";
-            int startIndex = json.indexOf(search) + search.length();
-            int firstQuote = json.indexOf("\"", startIndex) + 1;
-            int lastQuote = json.lastIndexOf("\"");
-            return json.substring(firstQuote, lastQuote)
-                       .replace("\\n", "\n")
-                       .replace("\\\"", "\"");
-        } catch (Exception e) {
-            return "Error al procesar el JSON de la IA: " + json;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+private String extractAnswerFromJson(String json) {
+    try {
+        JsonNode root = MAPPER.readTree(json);
+        JsonNode answer = root.get("answer");
+        if (answer == null || answer.isNull()) {
+            return "Respuesta sin campo 'answer': " + json;
         }
+        return answer.asText(); // <-- aquí ya devuelve ñ/á/é correctamente
+    } catch (Exception e) {
+        return "Error al parsear JSON de la IA: " + e.getMessage() + " | raw=" + json;
     }
+}
 }

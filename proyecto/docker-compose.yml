@@ -53,6 +53,7 @@ services:
     environment:
       - LLAMACHAT_HOST=ssdd-llamachat
       - LLAMACHAT_PORT=5020
+      - JAVA_TOOL_OPTIONS=-Djdk.httpclient.allowRestrictedHeaders=expect,connection
     depends_on:
       db-mysql:
         condition: service_healthy
