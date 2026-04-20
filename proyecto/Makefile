@@ -6,6 +6,9 @@ all: $(SUBDIRS)
 run-devel:
 	docker-compose -f docker-compose-devel.yml up --build
 
+run: 
+	docker-compose -f docker-compose.yml up --build
+
 containers: $(SUBDIRS)
 	for i in $(SUBDIRS); do \
 		$(MAKE) -C $$i $@; \

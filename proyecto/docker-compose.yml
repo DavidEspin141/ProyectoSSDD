@@ -1,6 +1,7 @@
 services:
 
   ssdd-frontend:
+    build: ./frontend
     image: dsevilla/ssdd-frontend:1.0
     ports:
       - 5010:5010
@@ -31,19 +32,27 @@ services:
       start_period: 20s
 
   backend-rest:
+    build: ./backend-rest/es.um.sisdist.backend.Service
     image: dsevilla/ssdd-backend-rest:1.0
     ports:
       - 8080:8080
     env_file: sql.env
+    environment:
+      - GRPC_SERVER=backend-grpc
     depends_on:
       db-mysql:
         condition: service_healthy
+   
 
   backend-grpc:
+    build: ./backend-grpc/es.um.sisdist.backend.grpc.GrpcServiceImpl
     image: dsevilla/ssdd-backend-grpc:1.0
     ports:
       - 50051
     env_file: sql.env
+    environment:
+      - LLAMACHAT_HOST=ssdd-llamachat
+      - LLAMACHAT_PORT=5020
     depends_on:
       db-mysql:
         condition: service_healthy
