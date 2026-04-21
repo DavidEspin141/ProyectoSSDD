@@ -26,10 +26,10 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import java.util.Date;
+import io.prometheus.client.Counter;
 
 
-public class AppLogicImpl
-{
+public class AppLogicImpl{
     IDAOFactory daoFactory;
     IUserDAO dao;
 
@@ -42,7 +42,12 @@ public class AppLogicImpl
     static AppLogicImpl instance = new AppLogicImpl();
     //Clave con la que se cifrará los tokens JWT. 
     public static final String SECRET_KEY = "LlamaChatSecretKeyParaSistemasDistribuidos2026!!!";
-
+    // Métrica personalizada para contar número de mensajes enviados a la IA
+    private static final Counter mensajesIA = Counter.build()
+                            .name("llamachat_mensajes_ia_total")
+                            .help("Número total de mensajes enviados al motor de IA por los usuarios")
+                            .register();
+    
     private AppLogicImpl(){
         daoFactory = new DAOFactoryImpl();
         Optional<String> backend = Optional.ofNullable(System.getenv("DB_BACKEND"));
@@ -197,6 +202,9 @@ public class AppLogicImpl
                 .setDialogueId(dialogueId)
                 .setPrompt(prompt)
                 .build();
+
+            //Incrementamos contador para la métrica
+            mensajesIA.inc();
             //Creamos los metadatos y metemos el token con el formato "Bearer <token>"
             Metadata metadata = new Metadata();
             metadata.put(Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER), "Bearer " + token);

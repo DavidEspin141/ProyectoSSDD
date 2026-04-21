@@ -9,6 +9,7 @@ services:
     environment:
       - FLASK_APP=app/app.py
       - FLASK_DEBUG=true
+      - DEBUG_METRICS=true
       - PORT=5010
     depends_on:
       db-mysql:
@@ -57,3 +58,13 @@ services:
     depends_on:
       db-mysql:
         condition: service_healthy
+
+  prometheus: 
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes: 
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - ssdd-frontend
+      - backend-rest

@@ -3,6 +3,8 @@ from flask import Flask, render_template, send_from_directory, url_for, request,
 from flask_login import LoginManager, login_manager, current_user, login_user, login_required, logout_user
 from flask import jsonify, request, session
 from flask_login import login_required, current_user
+from prometheus_flask_exporter import PrometheusMetrics
+
 import requests
 import os
 # Usuarios
@@ -14,6 +16,8 @@ from forms import LoginForm, SignupForm
 REST_API_URL = "http://backend-rest:8080/Service/u"
 
 app = Flask(__name__, static_url_path='')
+metrics = PrometheusMetrics(app)  #Habilita endpoint /metrics
+
 login_manager = LoginManager()
 login_manager.init_app(app) # Para mantener la sesión
 
