@@ -167,9 +167,9 @@ def api_chat_send():
 
     try:
         if not dialogue_id:
-            resp = requests.post(base_url, json=payload, headers=get_auth_headers(), timeout=180)
+            resp = requests.post(base_url, json=payload, headers=get_auth_headers(), timeout=300)
         else:
-            resp = requests.post(f"{base_url}/{dialogue_id}/next", json=payload, headers=get_auth_headers(), timeout=180)
+            resp = requests.post(f"{base_url}/{dialogue_id}/next", json=payload, headers=get_auth_headers(), timeout=300)
 
         # Si backend devuelve error
         if resp.status_code != 200:

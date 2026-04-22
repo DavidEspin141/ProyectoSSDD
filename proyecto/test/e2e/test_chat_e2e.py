@@ -5,7 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-BASE_URL = "http://127.0.0.1:5010"
+BASE_URL = "http://127.0.0.1:5010" # URL  del frontend
 EMAIL = "admin@um.es"
 PASSWORD = "2004"
 
@@ -13,7 +13,6 @@ PASSWORD = "2004"
 class LlamaChatTest(unittest.TestCase):
     def setUp(self):
         options = webdriver.ChromeOptions()
-        # options.add_argument("--headless=new")  # si quieres headless
         options.add_argument("--window-size=1280,800")
 
         self.driver = webdriver.Chrome(options=options)
@@ -32,7 +31,6 @@ class LlamaChatTest(unittest.TestCase):
         driver.find_element(By.CSS_SELECTOR, "button.btn-login[type='submit']").click()
 
         # 3) Tras login: estamos en inicio. Pulsar "Chats" en la navbar.
-        # El link es: <a class="nav-link" href="/chat">Chats</a>
         chats_link = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//a[contains(@class,'nav-link') and normalize-space()='Chats']"))
         )
@@ -55,7 +53,7 @@ class LlamaChatTest(unittest.TestCase):
                     return m
             return False
 
-        msg = WebDriverWait(driver, 60).until(assistant_message_with_text)
+        msg = WebDriverWait(driver, 320).until(assistant_message_with_text)
         print("Respuesta recibida:\n" + msg.text)
 
         self.assertTrue(msg.text.strip())
