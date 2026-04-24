@@ -27,3 +27,18 @@ CREATE TABLE IF NOT EXISTS dialogues (
     timestamp bigint,            
     FOREIGN KEY(dialogue_id) REFERENCES conversations(dialogue_id) ON DELETE CASCADE
 );
+
+-- ----------------------------
+-- Usuario inicial (seed)
+-- email: admin@um.es
+-- pass : 2004
+-- ----------------------------
+INSERT INTO users (id, email, password_hash, name, token)
+VALUES (
+  'e5074a56539948a6f6ead15f6cb177f5',
+  'admin@um.es',
+  'b8b4b727d6f5d1b61fff7be687f7970f',
+  'Administrador',
+  NULL
+)
+ON DUPLICATE KEY UPDATE email = email;
