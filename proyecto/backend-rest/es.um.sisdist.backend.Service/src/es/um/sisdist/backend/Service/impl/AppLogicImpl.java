@@ -37,7 +37,6 @@ public class AppLogicImpl{
 
     private final ManagedChannel channel;
     private final LLMServiceGrpc.LLMServiceBlockingStub blockingStub;
-    //private final GrpcServiceGrpc.GrpcServiceStub asyncStub;
 
     static AppLogicImpl instance = new AppLogicImpl();
     //Clave con la que se cifrará los tokens JWT. 
@@ -152,7 +151,7 @@ public class AppLogicImpl{
         return nuevaConv;
         }
     
-        return null; // O lanzar una excepción si el usuario no existe
+        return null; //Lanzar una excepción si el usuario no existe
     }
 
     public Conversation obtenerConversacion(String userId, String dialogueId) {
@@ -235,6 +234,7 @@ public class AppLogicImpl{
             return errMsg;
         }
     }
+
     // Toma el DTO, verifica duplicados, crea la entidad User y la guarda en BD.
     public Optional<User> registerUser(UserDTO dto) {
         // Verificamos si el email ya está registrado
@@ -282,9 +282,8 @@ public class AppLogicImpl{
         return true;
     }
 
-    /**
-     * Elimina una conversación de la lista del usuario y actualiza la BD.
-     */
+    
+    // Elimina una conversación de la lista del usuario y actualiza la BD.
     public boolean eliminarConversacion(String userId, String dialogueId) {
         Optional<User> userOpt = getUserById(userId);
         if (userOpt.isEmpty()) return false;

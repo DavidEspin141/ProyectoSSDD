@@ -94,7 +94,7 @@ def signup():
         try:
             # Enviamos el registro a Java
             response = requests.post(f"{REST_API_URL}/register", json=payload, timeout=5)
-            print(f"DEBUG: Java respondió con código {response.status_code}") # <--- AÑADE ESTO
+            print(f"DEBUG: Java respondió con código {response.status_code}") 
             if response.status_code == 200:
                 flash("Cuenta creada con éxito. Ya puedes iniciar sesión.", "success")
                 return redirect(url_for('login'))
@@ -179,7 +179,7 @@ def api_chat_send():
                 "details": resp.text
             }), 502
 
-        # Caso CLAVE: 200 pero cuerpo vacío
+        # Caso 200 pero cuerpo vacío
         if not resp.content or not resp.text.strip():
             return jsonify({
                 "error": "Backend REST devolvió 200 pero sin contenido (Content-Length 0)",

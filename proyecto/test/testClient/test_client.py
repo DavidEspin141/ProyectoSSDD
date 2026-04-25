@@ -13,7 +13,7 @@ def run_test():
     print("INICIANDO CLIENTE DE PRUEBA (API REST)")
     print("-" * 60)
 
-    # 1) Hacemos el REGISTRO
+    # 1. Hacemos el REGISTRO
     print("Regsitrando nuevo usuario: {USER_EMAIL}...")
     res = requests.post(f"{BASE_URL}/register", json = {
         "name" : USER_NAME,
@@ -22,7 +22,7 @@ def run_test():
     })
     
 
-    # 2) Hacemos el LOGIN del user creado
+    # 2. Hacemos el LOGIN del user creado
     print("\nHaciendo Login para obtener el JWT...")
     res = requests.post(f"{BASE_URL}/login", json={
         "email" : USER_EMAIL,

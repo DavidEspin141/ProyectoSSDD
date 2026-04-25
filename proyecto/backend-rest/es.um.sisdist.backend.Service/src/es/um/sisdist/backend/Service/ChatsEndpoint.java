@@ -98,7 +98,7 @@ public class ChatsEndpoint {
         
         if (conv == null) return Response.status(Response.Status.NOT_FOUND).build();
         
-        // Regla: Si no está READY, no se permite POST
+        // Si no está READY, no se permite POST
         if (conv.getStatus() != StatusConversation.READY) {
             return Response.status(Response.Status.FORBIDDEN)
                            .entity("La conversación no está lista o ya ha finalizado.")

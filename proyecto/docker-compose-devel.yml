@@ -22,7 +22,7 @@ services:
     ports:
       - 5020:5020
     environment:
-      - DUMMY=true  # <-- Esto obliga a Python a NO cargar la IA real
+      - DUMMY=true  #Esto obliga a Python a NO cargar la IA real
       - PORT=5020
 
   db-mysql:

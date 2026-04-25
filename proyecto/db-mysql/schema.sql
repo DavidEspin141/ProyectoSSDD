@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dialogues (
 );
 
 -- ----------------------------
--- Usuario inicial (seed)
+-- Usuario inicial 
 -- email: admin@um.es
 -- pass : 2004
 -- ----------------------------

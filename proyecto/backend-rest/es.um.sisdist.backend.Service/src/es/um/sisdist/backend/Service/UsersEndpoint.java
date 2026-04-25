@@ -23,8 +23,8 @@ public class UsersEndpoint
             .orElse(Response.status(Response.Status.NOT_FOUND).build());
     }
 
-    // Endpoint: POST /u/register
-    // Función: Recibe un UserDTO desde Flask, lo registra y devuelve un 200 OK o 400 Error.
+    // POST /u/register
+    // Recibe un UserDTO desde Flask, lo registra y devuelve un 200 OK o 400 Error.
     @POST
     @Path("/register")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -37,8 +37,8 @@ public class UsersEndpoint
         return Response.status(Response.Status.BAD_REQUEST).entity("El email ya existe o error interno").build();
     }
 
-    // Endpoint: POST /u/login
-    // Función: Comprueba las credenciales. Si son correctas, devuelve los datos del usuario.
+    // POST /u/login
+    // Comprueba las credenciales. Si son correctas, devuelve los datos del usuario.
     @POST
     @Path("/login")
     @Consumes(MediaType.APPLICATION_JSON)

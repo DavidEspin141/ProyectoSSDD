@@ -14,7 +14,6 @@ public class User {
 
     //private int visits;
     private List<Conversation> conversations; // Lista de chats del user
-    //private Stats
 
     /**
      * @return the id
@@ -112,22 +111,6 @@ public class User {
         this.token = TOKEN;
     }
 
-    /**
-     * @return the visits
-     
-    public int getVisits()
-    {
-        return visits;
-    }
-
-    /**
-     * @param visits the visits to set
-     
-    public void setVisits(final int visits)
-    {
-        this.visits = visits;
-    }
-    */
     public User(String email, String password_hash, String name, String tOKEN)
     {
         this.id = UserUtils.md5pass(email);

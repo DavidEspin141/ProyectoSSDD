@@ -50,7 +50,7 @@ class GrpcServiceImpl extends LLMServiceGrpc.LLMServiceImplBase {
 
             String jsonInput = String.format("{\"prompt\": \"%s\"}", cleanPrompt);
 
-            // 2. Petición POST inicial (El "Pedido")
+            // 2. Petición POST inicial
             HttpRequest postReq = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/prompt"))
                     .header("Content-Type", "application/json")

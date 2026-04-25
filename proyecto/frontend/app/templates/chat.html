@@ -755,7 +755,7 @@
 
             dialogueId = selectedDialogueId;
 
-            // (Opcional recomendado) Cargar mensajes y pintarlos:
+            // Cargar mensajes y pintarlos:
             await loadConversationMessages(selectedDialogueId);
         }
 
@@ -771,7 +771,7 @@
                     return;
                 }
 
-                // data es Conversation con data.dialogue = [{prompt,response,timestamp}, ...]
+                // data es Conversation con data.dialogue
                 const chatMessages = document.getElementById('chat-messages');
                 chatMessages.innerHTML = ''; // limpia el panel
                 ensureNotEmptyState(); // (si no hay empty-state ya no hace nada)
@@ -824,7 +824,7 @@
             
             if (!confirm('¿Estás seguro de que quieres eliminar esta conversación definitivamente?')) return;
 
-            // Truco de Frontend: Capturamos la caja exacta del HTML que el usuario ha clicado
+            // Capturamos la caja exacta del HTML que el usuario ha clicado
             const chatElement = event.currentTarget.closest('.chat-item');
 
             try {
@@ -839,7 +839,7 @@
                     }
 
                     // 2. Si el chat borrado es el que está en pantalla, limpiamos 
-                    // el panel a mano (SIN llamar a newChat() para no recargar la lista antigua)
+                    // el panel a mano para no recargar la lista antigua
                     if (dialogueId === id) {
                         dialogueId = null;
                         try { await fetch('/chat/reset', { method: 'POST' }); } catch (_) {}
