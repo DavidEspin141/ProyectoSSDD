@@ -30,15 +30,16 @@ CREATE TABLE IF NOT EXISTS dialogues (
 
 -- ----------------------------
 -- Usuario inicial 
--- email: admin@um.es
--- pass : 2004
+-- email: dsevilla@um.es
+-- pass : admin
 -- ----------------------------
 INSERT INTO users (id, email, password_hash, name, token)
 VALUES (
-  'e5074a56539948a6f6ead15f6cb177f5',
-  'admin@um.es',
-  'b8b4b727d6f5d1b61fff7be687f7970f',
-  'Administrador',
+  '11f9ef5aee626c003ac18382578d37b5',
+  'dsevilla@um.es',
+  '21232f297a57a5a743894a0e4a801fc3',
+  'Diego Sevilla',
   NULL
 )
 ON DUPLICATE KEY UPDATE email = email;
+
