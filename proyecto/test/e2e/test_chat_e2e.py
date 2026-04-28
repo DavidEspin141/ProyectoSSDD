@@ -6,8 +6,8 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 BASE_URL = "http://127.0.0.1:5010" # URL  del frontend
-EMAIL = "admin@um.es"
-PASSWORD = "2004"
+EMAIL = "dsevilla@um.es"
+PASSWORD = "admin"
 
 
 class LlamaChatTest(unittest.TestCase):
